@@ -1,0 +1,6 @@
+# Visual Studio
+*.vcxproj
+*.filters
+/Debug/
+/Release/
+/x64/

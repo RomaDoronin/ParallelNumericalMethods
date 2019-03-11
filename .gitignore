@@ -1,6 +1,12 @@
 # Visual Studio
+
 *.vcxproj
 *.filters
-/Debug/
-/Release/
-/x64/
+*.sln
+*.user
+
+
+**Debug/
+**Release/
+**x64/
+/.vs/

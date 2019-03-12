@@ -26,12 +26,12 @@ private:
 
     std::vector<T> GetMatrixColumn(size_t colNum) const
     {
-		std::vector<T> col;
+        std::vector<T> col;
 
-		for (int i = colNum; i < m_size * m_size; i += m_size)
-			col.push_back(m_matrix[i]);
+        for (int i = colNum; i < m_size * m_size; i += m_size)
+            col.push_back(m_matrix[i]);
 
-		return col;
+        return col;
     }
 
     T ScalarMult(std::vector<T> vec1, std::vector<T> vec2)
@@ -54,36 +54,36 @@ private:
         }
     }
 
-	std::vector<T> GetSubMatrix(std::vector<T> matrix, size_t removeRow, size_t removeCol)
-	{
-		std::vector<T> submatrix;
-		size_t size = sqrt(matrix.size());
+    std::vector<T> GetSubMatrix(std::vector<T> matrix, size_t removeRow, size_t removeCol)
+    {
+        std::vector<T> submatrix;
+        size_t size = sqrt(matrix.size());
 
-		for (size_t i = 0; i < pow(size, 2); i++)
-		{
-			if ((i / size != removeRow) && (i % size != removeCol))
-			{
-				submatrix.push_back(matrix[i]);
-			}
-		}
+        for (size_t i = 0; i < pow(size, 2); i++)
+        {
+            if ((i / size != removeRow) && (i % size != removeCol))
+            {
+                submatrix.push_back(matrix[i]);
+            }
+        }
 
-		return submatrix;
-	}
+        return submatrix;
+    }
 
-	T GetDeterminantRec(std::vector<T> matrix, size_t size)
-	{
-		if (size == 1)
-			return matrix[0];
+    T GetDeterminantRec(std::vector<T> matrix, size_t size)
+    {
+        if (size == 1)
+            return matrix[0];
 
-		T det = 0;
+        T det = 0;
 
-		for (size_t i = 0; i < size; i++)
-		{
-			det += matrix[i] * pow(-1, i) * GetDeterminantRec(GetSubMatrix(matrix, 0, i), size - 1);
-		}
+        for (size_t i = 0; i < size; i++)
+        {
+            det += matrix[i] * pow(-1, i) * GetDeterminantRec(GetSubMatrix(matrix, 0, i), size - 1);
+        }
 
-		return det;
-	}
+        return det;
+    }
 
 public:
     CMatrix(size_t size)
@@ -127,31 +127,31 @@ public:
         }
     }
 
-	T GetDeterminant()
-	{
-		return GetDeterminantRec(m_matrix, m_size);
-	}
+    T GetDeterminant()
+    {
+        return GetDeterminantRec(m_matrix, m_size);
+    }
 
-	bool IsPositivelyDefined()
-	{
-		std::vector<T> matrix = m_matrix;
+    bool IsPositivelyDefined()
+    {
+        std::vector<T> matrix = m_matrix;
 
-		for (size_t size = m_size; size > 0; size--)
-		{
-			T det = GetDeterminantRec(matrix, size);
+        for (size_t size = m_size; size > 0; size--)
+        {
+            T det = GetDeterminantRec(matrix, size);
 #ifdef TEST_MODE
-			std::cout << "GetDeterminantRec(matrix, size) = " << det << std::endl;
+            std::cout << "GetDeterminantRec(matrix, size) = " << det << std::endl;
 #endif // TEST_MODE
-			if (det <= 0)
-				return false;
+            if (det <= 0)
+                return false;
 
-			matrix = GetSubMatrix(matrix, size - 1, size - 1);
-		}
+            matrix = GetSubMatrix(matrix, size - 1, size - 1);
+        }
 
-		return true;
-	}
+        return true;
+    }
 
-	CMatrix<T> GetTrMatrix() const
+    CMatrix<T> GetTrMatrix() const
     {
         CMatrix<double> trMatrix(m_size);
 
@@ -168,28 +168,27 @@ public:
         return m_matrix[index];
     }
 
-	CMatrix operator * (const CMatrix& cMatrix)
-	{
-		std::vector<T> matrix;
+    CMatrix operator * (const CMatrix& cMatrix)
+    {
+        std::vector<T> matrix;
 
-		for (int i = 0; i < m_matrix.size(); i++)
-		{
-			matrix.push_back(ScalarMult(GetMatrixRow(i / m_size), cMatrix.GetMatrixColumn(i % m_size)));
-		}
+        for (int i = 0; i < m_matrix.size(); i++)
+        {
+            matrix.push_back(ScalarMult(GetMatrixRow(i / m_size), cMatrix.GetMatrixColumn(i % m_size)));
+        }
         return CMatrix(matrix);
     }
 
-	const bool operator == (const CMatrix& cMatrix)
-	{
-		for (int i = 0; i < pow(m_size, 2); i++)
-		{
-			if (m_matrix[i] != cMatrix.m_matrix[i])
-			{
-				return false;
-			}
-		}
+    const bool operator == (const CMatrix& cMatrix)
+    {
+        for (int i = 0; i < pow(m_size, 2); i++)
+        {
+            if (m_matrix[i] != cMatrix.m_matrix[i])
+            {
+                return false;
+            }
+        }
 
-		return true;
-	}
+        return true;
+    }
 };
-

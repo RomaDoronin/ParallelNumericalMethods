@@ -1,7 +1,9 @@
 #include "CMatrix.h"
 
 #define COUT std::cout
+#define CIN std::cin
 #define ENDL std::endl
+#define READLN int a; std::cin >> a
 
 enum PNMStatus
 {
@@ -15,7 +17,12 @@ enum PNMStatus
 // LMatirx - нижнетреугольная с положительными элементами на диагонали
 PNMStatus CholeskyBlockDecomposition(CMatrix<double> AMatrix, CMatrix<double> &LMatirx)
 {
-    for (size_t index = 0; index < AMatrix.GetSize() * AMatrix.GetSize(); index++)
+	if (AMatrix.GetSize() != LMatirx.GetSize())
+	{
+		return PNMStatusInitError;
+	}
+
+    for (size_t index = 0; index < pow(AMatrix.GetSize(), 2); index++)
     {
         size_t i = index / AMatrix.GetSize();
         size_t j = index % AMatrix.GetSize();
@@ -51,33 +58,82 @@ PNMStatus CholeskyBlockDecomposition(CMatrix<double> AMatrix, CMatrix<double> &L
     return PNMStatusOk;
 }
 
+PNMStatus ReverseMotion(CMatrix<double> LMatrix, std::vector<double> bVector, std::vector<double> &xVector)
+{
+	if (LMatrix.GetSize() == bVector.size() == xVector.size())
+	{
+		return PNMStatusInitError;
+	}
+
+	std::vector<double> yVector;
+
+	for (size_t i = 0; i < LMatrix.GetSize(); i++)
+	{
+		double sumL = 0;
+
+		for (size_t j = 0; j < i; j++)
+		{
+			sumL += LMatrix[i * LMatrix.GetSize() + j] * yVector[j];
+		}
+
+		yVector.push_back((bVector[i] - sumL) / LMatrix[i * LMatrix.GetSize() + i]);
+	}
+
+	CMatrix<double> LTMatrix(LMatrix.GetTrMatrix());
+
+	for (int i = LTMatrix.GetSize() - 1; i >= 0; i--)
+	{
+		double sumL = 0;
+
+		for (size_t j = LTMatrix.GetSize() - 1; j > i; j--)
+		{
+			sumL += LMatrix[i * LMatrix.GetSize() + j] * yVector[j];
+		}
+
+		xVector[i] = ((yVector[i] - sumL) / LMatrix[i * LMatrix.GetSize() + i]);
+	}
+
+	return PNMStatusOk;
+}
+
+void PrintVector(std::vector<double> vec)
+{
+	for (int i = 0; i < vec.size(); i++)
+	{
+		COUT << vec[i] << "	";
+	}
+
+	COUT << ENDL;
+}
 
 int main()
 {
     std::vector<double> initVec = { 10, -3,  2,
                                     -3,  3, -2,
                                      2, -2,  7 };
+	std::vector<double> bVector = { 3, 4, -14 };
+	std::vector<double> xVector = {  0,  0,  0 };
+
     CMatrix<double> AMatrix(initVec);
     CMatrix<double> LMatirx(AMatrix.GetSize());
 
-    if (CholeskyBlockDecomposition(AMatrix, LMatirx) == PNMStatusOk)
-    {
-        std::cout << "LMatrix: " << std::endl;
-        LMatirx.PrintMatrix();
+    if (CholeskyBlockDecomposition(AMatrix, LMatirx) != PNMStatusOk) COUT << "Something goes wrong :(" << ENDL;
 
-        std::cout << "AMatrix: " << std::endl;
-        AMatrix.PrintMatrix();
-        std::cout << "LMatirx * LMatirx.GetTrMatrix(): " << std::endl;
-		CMatrix<double> checkMatrix(LMatirx * LMatirx.GetTrMatrix());
-		checkMatrix.PrintMatrix();
-    }
-    else
-    {
-        std::cout << "Something goes wrong :(";
-    }
+    COUT << "LMatrix: " << ENDL;
+    LMatirx.PrintMatrix();
+	COUT << "AMatrix: " << ENDL;
+    AMatrix.PrintMatrix();
+    COUT << "LMatirx * LMatirx.GetTrMatrix(): " << ENDL;
+	CMatrix<double> checkMatrix(LMatirx * LMatirx.GetTrMatrix());
+	checkMatrix.PrintMatrix();
+    
+	COUT << "bVector : ";
+	PrintVector(bVector);
+	if (ReverseMotion(LMatirx, bVector, xVector) != PNMStatusOk) COUT << "Something goes wrong :(" << ENDL;
+	COUT << "xVector : ";
+	PrintVector(xVector);
 
-    int a;
-    std::cin >> a;
+	READLN;
 
     return 0;
 }

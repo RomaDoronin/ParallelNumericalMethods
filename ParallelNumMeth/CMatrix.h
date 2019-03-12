@@ -116,15 +116,15 @@ public:
     {
         size_t count = 0;
 
-        for each (T val in m_matrix)
-        {
-            std::cout << val << "	";
-            if (count % m_size == 2)
-            {
-                std::cout << std::endl;
-            }
-            count++;
-        }
+		for (int i = 0; i < m_matrix.size(); i++)
+		{
+			std::cout << m_matrix[i] << "	";
+			if (count % m_size == 2)
+			{
+				std::cout << std::endl;
+			}
+			count++;
+		}
     }
 
     T GetDeterminant()

@@ -1,5 +1,8 @@
 #include "CMatrix.h"
 
+#define COUT std::cout
+#define ENDL std::endl
+
 enum PNMStatus
 {
 	PNMStatusOk,
@@ -23,7 +26,7 @@ PNMStatus CholeskyBlockDecomposition(CMatrix<double> AMatrix, CMatrix<double> &L
 		{
 			double sumL = 0;
 
-			for (size_t k = 1; k < i; k++)
+			for (size_t k = 0; k < i; k++)
 			{
 				sumL += pow(LMatirx[i * AMatrix.GetSize() + k], 2);
 			}
@@ -34,7 +37,7 @@ PNMStatus CholeskyBlockDecomposition(CMatrix<double> AMatrix, CMatrix<double> &L
 		{
 			double sumL = 0;
 
-			for (size_t k = 1; k < j; k++)
+			for (size_t k = 0; k < j; k++)
 			{
 				sumL += LMatirx[i * AMatrix.GetSize() + k] * LMatirx[j * AMatrix.GetSize() + k];
 			}
@@ -49,10 +52,11 @@ PNMStatus CholeskyBlockDecomposition(CMatrix<double> AMatrix, CMatrix<double> &L
 }
 
 
-
 int main()
 {
-	std::vector<double> initVec = { 2,4,9, 4,8,1, 9,1,6 };
+	std::vector<double> initVec = { 10, -3,  2,
+		                            -3,  3, -2,
+		                             2, -2,  7 };
 	CMatrix<double> AMatrix(initVec);
 	CMatrix<double> LMatirx(AMatrix.GetSize());
 
@@ -65,10 +69,7 @@ int main()
 		AMatrix.PrintMatrix();
 		std::cout << "LMatirx * LMatirx.GetTrMatrix(): " << std::endl;
 		(LMatirx * LMatirx.GetTrMatrix()).PrintMatrix();
-		if (AMatrix == LMatirx * LMatirx.GetTrMatrix())
-			std::cout << "[ OK ]";
-		else
-			std::cout << "[ FAILED ]";
+
 	}
 	else
 	{

@@ -156,6 +156,46 @@ TEST(Functions, Mult)
 	EXPECT_EQ((cMatrix5 * cMatrix6) == cMatrix56, true);
 }
 
+//------------------- GetSubMatrix
+TEST(Functions, GetSubMatrix)
+{
+	CMatrix<double> cMatrix1({ 5,2,6, 8,4,7, 5,2,6 });
+	CMatrix<double> cMatrix2({ 5,2, 8,4 });
+	CMatrix<double> cMatrix3(cMatrix1.GetSubMatrix(cMatrix1.m_matrix, 2, 2));
+	EXPECT_EQ(cMatrix3 == cMatrix2, true);
+
+	CMatrix<double> cMatrix4({ 5,2,6, 8,4,7, 5,2,6 });
+	CMatrix<double> cMatrix5({ 5,6, 5,6 });
+	CMatrix<double> cMatrix6(cMatrix4.GetSubMatrix(cMatrix4.m_matrix, 1, 1));
+	EXPECT_EQ(cMatrix5 == cMatrix6, true);
+}
+
+//------------------- GetDeterminantRec
+TEST(Functions, GetDeterminantRec)
+{
+	CMatrix<double> cMatrix1({ 2,4,9, 4,8,1, 9,1,6 });
+	EXPECT_EQ(cMatrix1.GetDeterminant(), -578);
+
+	std::vector<double> vec1 = { 2,4, 4,8 };
+	EXPECT_EQ(cMatrix1.GetDeterminantRec(vec1, 2), 0);
+
+	std::vector<double> vec2;
+	vec2.push_back(2);
+	EXPECT_EQ(cMatrix1.GetDeterminantRec(vec2, 1), 2);
+}
+
+//------------------- IsPositivelyDefined
+TEST(Functions, IsPositivelyDefined)
+{
+	CMatrix<double> cMatrix1({ 2,4,9, 4,8,1, 9,1,6 });
+	EXPECT_EQ(cMatrix1.IsPositivelyDefined(), false);
+
+	CMatrix<double> cMatrix2({ 2,-1,0, -1,2,-1, 0,-1,2 });
+	EXPECT_EQ(cMatrix2.IsPositivelyDefined(), true);
+
+	CMatrix<double> cMatrix3({ 10,-3,2, -3,3,-2, 2,-2,7 });
+	EXPECT_EQ(cMatrix3.IsPositivelyDefined(), true);
+}
 
 int main(int argc, char* argv[])
 {

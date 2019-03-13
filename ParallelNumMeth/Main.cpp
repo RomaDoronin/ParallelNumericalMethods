@@ -4,6 +4,7 @@
 #define CIN std::cin
 #define ENDL std::endl
 #define READLN int a; std::cin >> a
+#define COUT_BOOL(boolVar) if (boolVar) std::cout << "True"; else std::cout << "False"
 
 enum PNMStatus
 {
@@ -11,6 +12,16 @@ enum PNMStatus
     PNMStatusFailed,
     PNMStatusInitError
 };
+
+void PrintVector(std::vector<double> vec)
+{
+	for (int i = 0; i < vec.size(); i++)
+	{
+		COUT << vec[i] << "	";
+	}
+
+	COUT << ENDL;
+}
 
 // Блочное разложение Холецкого
 // AMatrix - симетричная положительно определенная матрица
@@ -79,55 +90,74 @@ PNMStatus ReverseMotion(CMatrix<double> LMatrix, std::vector<double> bVector, st
 		yVector.push_back((bVector[i] - sumL) / LMatrix[i * LMatrix.GetSize() + i]);
 	}
 
+#ifdef TEST_MOD
+
+	COUT << ENDL << "yVector : ";
+	PrintVector(yVector);
+	std::vector<double> refYVector = { 7.*sqrt(6.)/3., sqrt(30.)/3., sqrt(5)/2., sqrt(15.)/2. };
+	COUT << "refYVector : ";
+	PrintVector(refYVector);
+
+#endif // TEST_MOD
+
 	CMatrix<double> LTMatrix(LMatrix.GetTrMatrix());
 
 	for (int i = LTMatrix.GetSize() - 1; i >= 0; i--)
 	{
 		double sumL = 0;
+		int index = -1;
 
 		for (size_t j = LTMatrix.GetSize() - 1; j > i; j--)
 		{
-			sumL += LMatrix[i * LMatrix.GetSize() + j] * yVector[j];
+			index = i * LTMatrix.GetSize() + j;
+			sumL += LTMatrix[index] * xVector[j];
 		}
 
-		xVector[i] = ((yVector[i] - sumL) / LMatrix[i * LMatrix.GetSize() + i]);
+		index = i * LTMatrix.GetSize() + i;
+
+		xVector[i] = ((yVector[i] - sumL) / LTMatrix[index]);
 	}
 
 	return PNMStatusOk;
 }
 
-void PrintVector(std::vector<double> vec)
-{
-	for (int i = 0; i < vec.size(); i++)
-	{
-		COUT << vec[i] << "	";
-	}
-
-	COUT << ENDL;
-}
-
 int main()
 {
-    std::vector<double> initVec = { 10, -3,  2,
-                                    -3,  3, -2,
-                                     2, -2,  7 };
-	std::vector<double> bVector = { 3, 4, -14 };
-	std::vector<double> xVector = {  0,  0,  0 };
+    std::vector<double> initVec = { 6,  2,   5,  1,
+                                    2,  4,  -2,  4,
+                                    5, -2,   9, -3,
+	                                1,  4,  -3,  8  };
 
     CMatrix<double> AMatrix(initVec);
+	COUT << "AMatrix: " << ENDL;
+	AMatrix.PrintMatrix();
+	COUT << "IsPositivelyDefined: ";  COUT_BOOL(AMatrix.IsPositivelyDefined()); COUT << ENDL << ENDL;
+
     CMatrix<double> LMatirx(AMatrix.GetSize());
 
     if (CholeskyBlockDecomposition(AMatrix, LMatirx) != PNMStatusOk) COUT << "Something goes wrong :(" << ENDL;
 
     COUT << "LMatrix: " << ENDL;
     LMatirx.PrintMatrix();
-	COUT << "AMatrix: " << ENDL;
-    AMatrix.PrintMatrix();
-    COUT << "LMatirx * LMatirx.GetTrMatrix(): " << ENDL;
+#ifdef TEST_MOD
+
+    COUT << ENDL << "LMatirx * LMatirx.GetTrMatrix(): " << ENDL;
 	CMatrix<double> checkMatrix(LMatirx * LMatirx.GetTrMatrix());
 	checkMatrix.PrintMatrix();
-    
-	COUT << "bVector : ";
+
+#endif // TEST_MOD
+
+	/*CMatrix<double> refLMatrix({       sqrt(6.),                  0,              0,            0,
+		                            sqrt(6.)/3.,       sqrt(30.)/3.,              0,            0,
+		                         5.*sqrt(6.)/6., -11.*sqrt(30.)/30., 2.*sqrt(5.)/5.,            0,
+	                                sqrt(6.)/6.,  11.*sqrt(30.)/30.,   sqrt(5.)/10., sqrt(15.)/2.  });
+	COUT << "refLMatrix: " << ENDL;
+	refLMatrix.PrintMatrix();*/
+
+	std::vector<double> bVector = { 29, 20, 16, 32 };
+	std::vector<double> xVector = {  0,  0,  0,  0 };
+
+	COUT << ENDL << "bVector : ";
 	PrintVector(bVector);
 	if (ReverseMotion(LMatirx, bVector, xVector) != PNMStatusOk) COUT << "Something goes wrong :(" << ENDL;
 	COUT << "xVector : ";

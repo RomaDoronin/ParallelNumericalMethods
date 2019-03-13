@@ -119,7 +119,7 @@ public:
 		for (int i = 0; i < m_matrix.size(); i++)
 		{
 			std::cout << m_matrix[i] << "	";
-			if (count % m_size == 2)
+			if (count % m_size == m_size - 1)
 			{
 				std::cout << std::endl;
 			}

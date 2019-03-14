@@ -179,6 +179,18 @@ public:
         return CMatrix(matrix);
     }
 
+	std::vector<T> operator * (const std::vector<T>& cVector)
+	{
+		std::vector<T> res;
+
+		for (int i = 0; i < m_size; i++)
+		{
+			res.push_back(ScalarMult(cVector, GetMatrixRow(i)));
+		}
+
+		return res;
+	}
+
     const bool operator == (const CMatrix& cMatrix)
     {
         for (int i = 0; i < pow(m_size, 2); i++)

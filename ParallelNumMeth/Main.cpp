@@ -1,6 +1,7 @@
 #include "CMatrix.h"
 #include <ctime>
 #include <omp.h>
+#include <list>
 
 #define COUT std::cout
 #define CIN std::cin
@@ -121,6 +122,50 @@ PNMStatus CholeskyBlockDecompositionParallel(CMatrix<double> AMatrix, CMatrix<do
 	return PNMStatusOk;
 }
 
+PNMStatus CholeskyBlockDecompositionWithoutCollect(CMatrix<double> AMatrix, CMatrix<double> &LMatirx)
+{
+	if (AMatrix.GetSize() != LMatirx.GetSize())
+	{
+		return PNMStatusInitError;
+	}
+
+	int size = AMatrix.GetSize();
+
+	size_t ProcNum = 3;
+	omp_set_num_threads(ProcNum);
+
+//#pragma omp parallel for // FAILED
+	for (int i = 0; i < size; i++)
+	{
+		AMatrix.SetMatrixCell(i * size + i, sqrt(AMatrix[i * size + i]));
+#pragma omp parallel for // OK
+		for (int j = i + 1; j < size; j++)
+		{
+			AMatrix.SetMatrixCell(j * size + i, AMatrix[j * size + i] / AMatrix[i * size + i]);
+		}
+
+#pragma omp parallel for // OK
+		for (int k = i + 1; k < size; k++)
+		{
+			for (int j = k; j < size; j++)
+			{
+				AMatrix.SetMatrixCell(j * size + k, AMatrix[j * size + k] - AMatrix[j * size + i] * AMatrix[k * size + i]);
+			}
+		}
+	}
+
+
+	for (int i = 0; i < pow(size, 2); i++)
+	{
+		if (i % size <= i / size)
+			LMatirx.SetMatrixCell(i, AMatrix[i]);
+		else
+			LMatirx.SetMatrixCell(i, 0);
+	}
+
+	return PNMStatusOk;
+}
+
 PNMStatus ReverseMotion(CMatrix<double> LMatrix, std::vector<double> bVector, std::vector<double> &xVector)
 {
 	if (LMatrix.GetSize() == bVector.size() == xVector.size())
@@ -187,7 +232,7 @@ std::vector<double> GenVec(int size, int var)
 
 // Positively Defined Simetric Matrix
 // koef - The power ratio of the main diagonal
-std::vector<double> GeneratePDSM(int size, double koef, int var)
+PNMStatus GeneratePDSM(int size, double koef, int var, std::vector<double> &initVec)
 {
 	std::vector<double> vec(pow(size, 2));
 
@@ -228,7 +273,9 @@ std::vector<double> GeneratePDSM(int size, double koef, int var)
 		}
 	}
 
-	return vec;
+	initVec = vec;
+
+	return PNMStatusOk;
 }
 
 PNMStatus PRKK(std::vector<double> res1, std::vector<double> res2, double accuracy)
@@ -262,54 +309,78 @@ int main()
 	srand(time(0));
 	int size = 0;
 
-	for (size = 100; size < 1001; size += 100)
+	/*std::list<std::vector<double>> dataList;
+
+	for (size = 1000; size < 5001;)
 	{
-		double start_time = omp_get_wtime();
-		double curr_time = start_time;
+		std::vector<double> initVec(pow(size, 2));
+		CHECK_STATUS(GeneratePDSM(size, 1, 9, initVec));
+		CMatrix<double> AMatrix(initVec);
+		if (AMatrix.IsPositivelyDefined())
+		{
+			COUT << "PUSH" << ENDL;
+			dataList.push_back(initVec);
+			size += 1000;
+		}
+	}*/
 
-		CMatrix<double> AMatrix(GeneratePDSM(size, 1, 9));
-		CHECK_TIME("Gen");
+	for (int co = 0; co < 3; co++)
+	{
+		for (size = 1000; size < 5001; size += 1000)
+		{
+			double start_time = omp_get_wtime();
+			double curr_time = start_time;
 
-		//COUT << "AMatrix: " << ENDL;
-		//AMatrix.PrintMatrix();
-		//COUT << "IsPositivelyDefined: ";  COUT_BOOL(AMatrix.IsPositivelyDefined()); COUT << ENDL << ENDL;
+			std::vector<double> initVec(pow(size, 2));
+			CHECK_STATUS(GeneratePDSM(size, 1, 9, initVec));
+			CHECK_TIME("Gen");
+			CMatrix<double> AMatrix(initVec /*{ 2,-1,1, -1,4,2, 1,2,6 }*/);
 
-		std::vector<double> ref_xVector = GenVec(size, 20);
-		//COUT << "Ref xVector : ";
-		//PrintVector(ref_xVector);
-		std::vector<double> bVector = AMatrix * ref_xVector;
-		//COUT << "bVector : ";
-		//PrintVector(bVector);
+			//COUT << "AMatrix: " << ENDL;
+			//AMatrix.PrintMatrix();
+			//COUT << "IsPositivelyDefined: ";  COUT_BOOL(AMatrix.IsPositivelyDefined()); COUT << ENDL << ENDL;
+
+			std::vector<double> ref_xVector = GenVec(size, 20);
+			//COUT << "Ref xVector : ";
+			//PrintVector(ref_xVector);
+			std::vector<double> bVector = AMatrix * ref_xVector;
+			//COUT << "bVector : ";
+			//PrintVector(bVector);
 
 
-		CMatrix<double> LMatirx(AMatrix.GetSize());
+			CMatrix<double> LMatirx(AMatrix.GetSize());
 
-		CHECK_STATUS(CholeskyBlockDecomposition(AMatrix, LMatirx));
-		CHECK_TIME("Decomposition");
+			//CHECK_STATUS(CholeskyBlockDecomposition(AMatrix, LMatirx));
+			CHECK_STATUS(CholeskyBlockDecompositionWithoutCollect(AMatrix, LMatirx));
+			CHECK_TIME("Decomposition");
 
-		//COUT << ENDL << "LMatrix: " << ENDL;
-		//LMatirx.PrintMatrix();
+			//COUT << ENDL << "LMatrix: " << ENDL;
+			//LMatirx.PrintMatrix();
 
 #ifdef TEST_MOD
 
-		COUT << ENDL << "LMatirx * LMatirx.GetTrMatrix(): " << ENDL;
-		CMatrix<double> checkMatrix(LMatirx * LMatirx.GetTrMatrix());
-		checkMatrix.PrintMatrix();
+			COUT << ENDL << "LMatirx * LMatirx.GetTrMatrix(): " << ENDL;
+			CMatrix<double> checkMatrix(LMatirx * LMatirx.GetTrMatrix());
+			checkMatrix.PrintMatrix();
 
 #endif // TEST_MOD
 
-		std::vector<double> xVector(size);
-		CHECK_STATUS(ReverseMotion(LMatirx, bVector, xVector));
-		CHECK_TIME("Reverse");
+			std::vector<double> xVector(size);
+			CHECK_STATUS(ReverseMotion(LMatirx, bVector, xVector));
+			CHECK_TIME("Reverse");
 
-		//COUT << ENDL << "xVector : ";
-		//PrintVector(xVector);
+			//COUT << ENDL << "xVector : ";
+			//PrintVector(xVector);
 
-		CHECK_STATUS(PRKK(ref_xVector, xVector, 0.00001));
+			CHECK_STATUS(PRKK(ref_xVector, xVector, 0.00001));
+			CHECK_TIME("PRKK");
 
-		COUT << "====================" << ENDL;
-		COUT << "Size: " << size << " | Time: " << omp_get_wtime() - start_time << ENDL;
-		COUT << "====================" << ENDL;
+			COUT << "====================" << ENDL;
+			COUT << "Size: " << size << " | Time: " << omp_get_wtime() - start_time << ENDL;
+			COUT << "====================" << ENDL;
+		}
+
+		COUT << ".............................................................." << ENDL;
 	}
 
 	READLN;

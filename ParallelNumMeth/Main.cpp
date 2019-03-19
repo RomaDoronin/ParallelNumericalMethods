@@ -298,7 +298,7 @@ std::vector<double> GetCopyVector(std::vector<double> vec)
 {
 	std::vector<double> c_vec;
 
-	for each (double var in vec)
+	for (const auto &var: vec)
 	{
 		c_vec.push_back(var);
 	}

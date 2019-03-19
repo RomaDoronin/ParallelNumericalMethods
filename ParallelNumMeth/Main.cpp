@@ -122,7 +122,7 @@ PNMStatus CholeskyBlockDecompositionParallel(CMatrix<double> AMatrix, CMatrix<do
 	return PNMStatusOk;
 }
 
-PNMStatus CholeskyBlockDecompositionWithoutCollect(CMatrix<double> AMatrix, CMatrix<double> &LMatirx)
+PNMStatus CholeskyBlockDecompositionWithoutCollect(CMatrix<double> AMatrix, CMatrix<double> &LMatirx, int ProcNum)
 {
 	if (AMatrix.GetSize() != LMatirx.GetSize())
 	{
@@ -131,17 +131,18 @@ PNMStatus CholeskyBlockDecompositionWithoutCollect(CMatrix<double> AMatrix, CMat
 
 	int size = AMatrix.GetSize();
 
-	size_t ProcNum = 3;
 	omp_set_num_threads(ProcNum);
 
 //#pragma omp parallel for // FAILED
 	for (int i = 0; i < size; i++)
 	{
 		AMatrix.SetMatrixCell(i * size + i, sqrt(AMatrix[i * size + i]));
+		//AMatrix.PrintMatrix(); COUT << ENDL;
 #pragma omp parallel for // OK
 		for (int j = i + 1; j < size; j++)
 		{
 			AMatrix.SetMatrixCell(j * size + i, AMatrix[j * size + i] / AMatrix[i * size + i]);
+			//AMatrix.PrintMatrix(); COUT << ENDL;
 		}
 
 #pragma omp parallel for // OK
@@ -150,6 +151,7 @@ PNMStatus CholeskyBlockDecompositionWithoutCollect(CMatrix<double> AMatrix, CMat
 			for (int j = k; j < size; j++)
 			{
 				AMatrix.SetMatrixCell(j * size + k, AMatrix[j * size + k] - AMatrix[j * size + i] * AMatrix[k * size + i]);
+				//AMatrix.PrintMatrix(); COUT << ENDL;
 			}
 		}
 	}
@@ -324,17 +326,21 @@ int main()
 		}
 	}*/
 
-	for (int co = 0; co < 3; co++)
+	int ProcNum = 3;
+
+	for (int co = 0; co < 1; co++)
 	{
-		for (size = 1000; size < 5001; size += 1000)
+		for (size = 1000; size < 3001; size += 1000)
 		{
 			double start_time = omp_get_wtime();
 			double curr_time = start_time;
 
+			//size = 4;
+
 			std::vector<double> initVec(pow(size, 2));
 			CHECK_STATUS(GeneratePDSM(size, 1, 9, initVec));
 			CHECK_TIME("Gen");
-			CMatrix<double> AMatrix(initVec /*{ 2,-1,1, -1,4,2, 1,2,6 }*/);
+			CMatrix<double> AMatrix(initVec /*{ 2,-1,1,4, -1,4,2,2, 1,2,6,0, 4,2,0,7 }*/);
 
 			//COUT << "AMatrix: " << ENDL;
 			//AMatrix.PrintMatrix();
@@ -351,7 +357,7 @@ int main()
 			CMatrix<double> LMatirx(AMatrix.GetSize());
 
 			//CHECK_STATUS(CholeskyBlockDecomposition(AMatrix, LMatirx));
-			CHECK_STATUS(CholeskyBlockDecompositionWithoutCollect(AMatrix, LMatirx));
+			CHECK_STATUS(CholeskyBlockDecompositionWithoutCollect(AMatrix, LMatirx, ProcNum));
 			CHECK_TIME("Decomposition");
 
 			//COUT << ENDL << "LMatrix: " << ENDL;

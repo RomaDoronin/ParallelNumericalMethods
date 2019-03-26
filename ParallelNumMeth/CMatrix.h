@@ -2,6 +2,9 @@
 
 #include <vector>
 #include <iostream>
+#include <fstream>
+#include <string>
+#include <iomanip>
 
 template <typename T>
 class CMatrix
@@ -98,6 +101,16 @@ public:
         m_matrix = matrix;
     }
 
+	CMatrix(const CMatrix<T> &matrix)
+	{
+		m_size = matrix.GetSize();
+
+		for (int i = 0; i < pow(m_size, 2); i++)
+		{
+			m_matrix.push_back(matrix.m_matrix[i]);
+		}
+	}
+
     ~CMatrix()
     {
     }
@@ -126,6 +139,26 @@ public:
 			count++;
 		}
     }
+
+	void WriteMatrixInFile(std::string filename, std::string subText) const
+	{
+		size_t count = 0;
+		std::ofstream fout;
+		fout.open(filename, std::ios_base::app);
+
+		fout << "---------------------------------------- " << subText << std::endl;
+		for (int i = 0; i < m_matrix.size(); i++)
+		{
+			fout << std::setprecision(3) << m_matrix[i] << "	";
+			if (count % m_size == m_size - 1)
+			{
+				fout << std::endl;
+			}
+			count++;
+		}
+
+		fout.close();
+	}
 
     T GetDeterminant()
     {

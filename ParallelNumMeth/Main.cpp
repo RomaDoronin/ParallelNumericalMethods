@@ -25,107 +25,107 @@
 // LMatirx - нижнетреугольная с положительными элементами на диагонали
 void CholeskyBlockDecompositionWithoutCollect(CMatrix<double> AMatrix, CMatrix<double> &LMatirx, int ProcNum)
 {
-	int size = AMatrix.GetSize();
+    int size = AMatrix.GetSize();
 
-	omp_set_num_threads(ProcNum);
+    omp_set_num_threads(ProcNum);
 
 
-	for (int i = 0; i < size; i++)
-	{
-		// Извлекаем корень из i-ого элемента на главной диагонали
-		// A[i][i] = sqtr(A[i][i])
-		AMatrix.SetMatrixCell(i * size + i, sqrt(AMatrix[i * size + i]));
+    for (int i = 0; i < size; i++)
+    {
+        // Извлекаем корень из i-ого элемента на главной диагонали
+        // A[i][i] = sqtr(A[i][i])
+        AMatrix.SetMatrixCell(i * size + i, sqrt(AMatrix[i * size + i]));
 
 #ifdef FILE_WORK
-		AMatrix.WriteMatrixInFile("tread_0.txt", "A[" + std::to_string(i) + "][" + std::to_string(i) + "] = sqtr(A[" + std::to_string(i) + "][" + std::to_string(i) + "])"
-			+ " i = " + std::to_string(i));
+        AMatrix.WriteMatrixInFile("tread_0.txt", "A[" + std::to_string(i) + "][" + std::to_string(i) + "] = sqtr(A[" + std::to_string(i) + "][" + std::to_string(i) + "])"
+            + " i = " + std::to_string(i));
 #endif
 
-		// Делим все элеметны i-ого столбца ниже главной диагонали на i-ый элемент главной диагонали 
-		// A[j][i] /= A[i][i]
+        // Делим все элеметны i-ого столбца ниже главной диагонали на i-ый элемент главной диагонали 
+        // A[j][i] /= A[i][i]
 #pragma omp parallel for // OK
-		for (int j = i + 1; j < size; j++)
-		{
-			AMatrix.SetMatrixCell(j * size + i, AMatrix[j * size + i] / AMatrix[i * size + i]);
-			
+        for (int j = i + 1; j < size; j++)
+        {
+            AMatrix.SetMatrixCell(j * size + i, AMatrix[j * size + i] / AMatrix[i * size + i]);
+            
 #ifdef FILE_WORK
-			std::string filename = "tread_" + std::to_string(omp_get_thread_num()) + ".txt";
-			AMatrix.WriteMatrixInFile(filename, "A[" + std::to_string(j) + "][" + std::to_string(i) + "] = A[" + std::to_string(j) + "][" + std::to_string(i) + "] / A[" + std::to_string(i) + "][" + std::to_string(i) + "]"
-				+ " i = " + std::to_string(i) + " j = " + std::to_string(j));
+            std::string filename = "tread_" + std::to_string(omp_get_thread_num()) + ".txt";
+            AMatrix.WriteMatrixInFile(filename, "A[" + std::to_string(j) + "][" + std::to_string(i) + "] = A[" + std::to_string(j) + "][" + std::to_string(i) + "] / A[" + std::to_string(i) + "][" + std::to_string(i) + "]"
+                + " i = " + std::to_string(i) + " j = " + std::to_string(j));
 #endif
-		}
+        }
 
-		// A[j][k] = A[j][k] - A[j][i] * A[k][i]
+        // A[j][k] = A[j][k] - A[j][i] * A[k][i]
 //#pragma omp parallel for // OK
-		for (int k = i + 1; k < size; k++)
-		{
+        for (int k = i + 1; k < size; k++)
+        {
 #pragma omp parallel for // OK
-			for (int j = k; j < size; j++)
-			{
-				AMatrix.SetMatrixCell(j * size + k, AMatrix[j * size + k] - AMatrix[j * size + i] * AMatrix[k * size + i]);
+            for (int j = k; j < size; j++)
+            {
+                AMatrix.SetMatrixCell(j * size + k, AMatrix[j * size + k] - AMatrix[j * size + i] * AMatrix[k * size + i]);
 
 #ifdef FILE_WORK
-				std::string filename = "tread_" + std::to_string(omp_get_thread_num()) + ".txt";
-				AMatrix.WriteMatrixInFile(filename, "A[" + std::to_string(j) + "][" + std::to_string(k) + "] = A[" + std::to_string(j) + "][" + std::to_string(k) + "] - A[" + std::to_string(j) + "][" + std::to_string(i) + "] * A[" + std::to_string(k) + "][" + std::to_string(i) + "]"
-					+ " i = " + std::to_string(i) + " j = " + std::to_string(j) + " k = " + std::to_string(k));
+                std::string filename = "tread_" + std::to_string(omp_get_thread_num()) + ".txt";
+                AMatrix.WriteMatrixInFile(filename, "A[" + std::to_string(j) + "][" + std::to_string(k) + "] = A[" + std::to_string(j) + "][" + std::to_string(k) + "] - A[" + std::to_string(j) + "][" + std::to_string(i) + "] * A[" + std::to_string(k) + "][" + std::to_string(i) + "]"
+                    + " i = " + std::to_string(i) + " j = " + std::to_string(j) + " k = " + std::to_string(k));
 #endif
-			}
-		}
-	}
+            }
+        }
+    }
 
 
-	for (int i = 0; i < pow(size, 2); i++)
-	{
-		if (i % size <= i / size)
-			LMatirx.SetMatrixCell(i, AMatrix[i]);
-		else
-			LMatirx.SetMatrixCell(i, 0);
-	}
+    for (int i = 0; i < pow(size, 2); i++)
+    {
+        if (i % size <= i / size)
+            LMatirx.SetMatrixCell(i, AMatrix[i]);
+        else
+            LMatirx.SetMatrixCell(i, 0);
+    }
 }
 
 void ReverseMotion(CMatrix<double> LMatrix, std::vector<double> bVector, std::vector<double> &xVector)
 {
-	std::vector<double> yVector;
+    std::vector<double> yVector;
 
-	for (size_t i = 0; i < LMatrix.GetSize(); i++)
-	{
-		double sumL = 0;
+    for (size_t i = 0; i < LMatrix.GetSize(); i++)
+    {
+        double sumL = 0;
 
-		for (size_t j = 0; j < i; j++)
-		{
-			sumL += LMatrix[i * LMatrix.GetSize() + j] * yVector[j];
-		}
+        for (size_t j = 0; j < i; j++)
+        {
+            sumL += LMatrix[i * LMatrix.GetSize() + j] * yVector[j];
+        }
 
-		yVector.push_back((bVector[i] - sumL) / LMatrix[i * LMatrix.GetSize() + i]);
-	}
+        yVector.push_back((bVector[i] - sumL) / LMatrix[i * LMatrix.GetSize() + i]);
+    }
 
 #ifdef TEST_MOD
 
-	COUT << ENDL << "yVector : ";
-	PrintVector(yVector);
-	std::vector<double> refYVector = { 7.*sqrt(6.) / 3., sqrt(30.) / 3., sqrt(5) / 2., sqrt(15.) / 2. };
-	COUT << "refYVector : ";
-	PrintVector(refYVector);
+    COUT << ENDL << "yVector : ";
+    PrintVector(yVector);
+    std::vector<double> refYVector = { 7.*sqrt(6.) / 3., sqrt(30.) / 3., sqrt(5) / 2., sqrt(15.) / 2. };
+    COUT << "refYVector : ";
+    PrintVector(refYVector);
 
 #endif // TEST_MOD
 
-	CMatrix<double> LTMatrix(LMatrix.GetTrMatrix());
+    CMatrix<double> LTMatrix(LMatrix.GetTrMatrix());
 
-	for (int i = LTMatrix.GetSize() - 1; i >= 0; i--)
-	{
-		double sumL = 0;
-		int index = -1;
+    for (int i = LTMatrix.GetSize() - 1; i >= 0; i--)
+    {
+        double sumL = 0;
+        int index = -1;
 
-		for (size_t j = LTMatrix.GetSize() - 1; j > i; j--)
-		{
-			index = i * LTMatrix.GetSize() + j;
-			sumL += LTMatrix[index] * xVector[j];
-		}
+        for (size_t j = LTMatrix.GetSize() - 1; j > i; j--)
+        {
+            index = i * LTMatrix.GetSize() + j;
+            sumL += LTMatrix[index] * xVector[j];
+        }
 
-		index = i * LTMatrix.GetSize() + i;
+        index = i * LTMatrix.GetSize() + i;
 
-		xVector[i] = ((yVector[i] - sumL) / LTMatrix[index]);
-	}
+        xVector[i] = ((yVector[i] - sumL) / LTMatrix[index]);
+    }
 }
 
 
@@ -162,17 +162,17 @@ void Cholesky_Decomposition(double * A, double * L, int n)
             for (int j = k; j < n; j++)
             {
                 A[j * n + k] -= A[j * n + i] * A[k * n + i];
-			}
+            }
         }
     }
 
-	for (int i = 0; i < pow(n, 2); i++)
-	{
-		if (i % n <= i / n)
-			L[i] = A[i];
-		else
-			L[i] = 0;
-	}
+    for (int i = 0; i < pow(n, 2); i++)
+    {
+        if (i % n <= i / n)
+            L[i] = A[i];
+        else
+            L[i] = 0;
+    }
 }
 
 
@@ -181,109 +181,109 @@ void Cholesky_Decomposition(double * A, double * L, int n)
 //////////////////////////////////////////////////
 void PrintVector(std::vector<double> vec)
 {
-	for (int i = 0; i < vec.size(); i++)
-	{
-		COUT << vec[i] << "	";
-	}
+    for (int i = 0; i < vec.size(); i++)
+    {
+        COUT << vec[i] << "	";
+    }
 
-	COUT << ENDL;
+    COUT << ENDL;
 }
 
 std::vector<double> GenVec(int size, int var)
 {
-	std::vector<double> res;
+    std::vector<double> res;
 
-	for (int i = 0; i < size; i++)
-	{
-		res.push_back(RAND(-var, var));
-	}
+    for (int i = 0; i < size; i++)
+    {
+        res.push_back(RAND(-var, var));
+    }
 
-	return res;
+    return res;
 }
 
 // Positively Defined Simetric Matrix
 // koef - The power ratio of the main diagonal
 void GeneratePDSM(int size, double koef, int var, std::vector<double> &initVec)
 {
-	std::vector<double> vec(pow(size, 2));
+    std::vector<double> vec(pow(size, 2));
 
-	for (int i = 0; i < pow(size, 2); i++)
-	{
-		int rowIndex = i / size;
-		int colIndex = i % size;
-		
-		if (rowIndex < colIndex)
-		{
-			vec[rowIndex * size + colIndex] = RAND(-var, var);
-			vec[colIndex * size + rowIndex] = vec[rowIndex * size + colIndex];
-		}
-		else if (rowIndex == colIndex)
-		{
-			vec[i] = RAND(-var, var);
-		}
-	}
+    for (int i = 0; i < pow(size, 2); i++)
+    {
+        int rowIndex = i / size;
+        int colIndex = i % size;
+        
+        if (rowIndex < colIndex)
+        {
+            vec[rowIndex * size + colIndex] = RAND(-var, var);
+            vec[colIndex * size + rowIndex] = vec[rowIndex * size + colIndex];
+        }
+        else if (rowIndex == colIndex)
+        {
+            vec[i] = RAND(-var, var);
+        }
+    }
 
-	int sum = 0;
+    int sum = 0;
 
-	for (int i = 0; i < pow(size, 2); i++)
-	{
-		int rowIndex = i / size;
-		int colIndex = i % size;
+    for (int i = 0; i < pow(size, 2); i++)
+    {
+        int rowIndex = i / size;
+        int colIndex = i % size;
 
-		if (rowIndex != colIndex)
-			sum += abs(vec[i]);
+        if (rowIndex != colIndex)
+            sum += abs(vec[i]);
 
-		if (colIndex == size - 1)
-		{
-			while (vec[rowIndex * size + rowIndex] < sum * koef)
-			{
-				vec[rowIndex * size + rowIndex] += RAND(1, var);
-			}
+        if (colIndex == size - 1)
+        {
+            while (vec[rowIndex * size + rowIndex] < sum * koef)
+            {
+                vec[rowIndex * size + rowIndex] += RAND(1, var);
+            }
 
-			sum = 0;
-		}
-	}
+            sum = 0;
+        }
+    }
 
-	initVec = vec;
+    initVec = vec;
 }
 
 bool PRKK(std::vector<double> res1, std::vector<double> res2, double accuracy)
 {
-	if (res1.size() != res2.size())
-		return false;
+    if (res1.size() != res2.size())
+        return false;
 
-	for (int i = 0; i < res1.size(); i++)
-	{
-		if (abs(res1[i] - res2[i]) > accuracy)
-			return false;
-	}
+    for (int i = 0; i < res1.size(); i++)
+    {
+        if (abs(res1[i] - res2[i]) > accuracy)
+            return false;
+    }
 
-	return true;
+    return true;
 }
 
 std::vector<double> GetCopyVector(std::vector<double> vec)
 {
-	std::vector<double> c_vec;
+    std::vector<double> c_vec;
 
-	for (const auto &var: vec)
-	{
-		c_vec.push_back(var);
-	}
+    for (const auto &var: vec)
+    {
+        c_vec.push_back(var);
+    }
 
-	return vec;
+    return vec;
 }
 
 bool CompareMatrixVsArray(CMatrix<double> matrix, double *arr)
 {
-	for (int i = 0; i < matrix.GetSize(); i++)
-	{
-		if (matrix[i] != arr[i])
-		{
-			return false;
-		}
-	}
+    for (int i = 0; i < matrix.GetSize(); i++)
+    {
+        if (matrix[i] != arr[i])
+        {
+            return false;
+        }
+    }
 
-	return true;
+    return true;
 }
 
 
@@ -295,98 +295,98 @@ int main()
 #ifdef CHOLESKY_DECOMPOSITION
 
 #ifdef TESTPROG
-	srand(time(0));
+    srand(time(0));
 
-	int ProcNum = 4;
+    int ProcNum = 4;
 
 #ifdef FILE_WORK
-	for (int i = 0; i < ProcNum; i++)
-	{
-		std::ofstream fout("tread_" + std::to_string(i) + ".txt", std::ios_base::trunc);
-		fout.close();
-	}
+    for (int i = 0; i < ProcNum; i++)
+    {
+        std::ofstream fout("tread_" + std::to_string(i) + ".txt", std::ios_base::trunc);
+        fout.close();
+    }
 #endif
 
-	for (int size = 354; size <= 2000; size += 139)
-	{
-		COUT << "=================================== SIZE : " << size << ENDL;
+    for (int size = 354; size <= 2000; size += 139)
+    {
+        COUT << "=================================== SIZE : " << size << ENDL;
 
-		std::vector<double> initVec(pow(size, 2));
-		CHECK_STATUS(GeneratePDSM(size, 1, 9, initVec));
-		CMatrix<double> AMatrixRef(initVec);
-		CHECK_TIME("Gen");
+        std::vector<double> initVec(pow(size, 2));
+        CHECK_STATUS(GeneratePDSM(size, 1, 9, initVec));
+        CMatrix<double> AMatrixRef(initVec);
+        CHECK_TIME("Gen");
 
-		for (int countTreadNum = 1; countTreadNum < ProcNum + 1; countTreadNum++)
-		{
-			COUT << "=================================== COUNT TREAD NUM : " << countTreadNum << ENDL;
+        for (int countTreadNum = 1; countTreadNum < ProcNum + 1; countTreadNum++)
+        {
+            COUT << "=================================== COUNT TREAD NUM : " << countTreadNum << ENDL;
 
-			for (int count = 0; count < 2; count++)
-			{
-				COUT << "=================================== COUNT : " << count << ENDL;
-				
-				CMatrix<double> AMatrix(AMatrixRef);
-				std::vector<double> ref_xVector = GenVec(AMatrix.GetSize(), 20);
-				std::vector<double> bVector = AMatrix * ref_xVector;
-				CMatrix<double> LMatirx(AMatrix.GetSize());
+            for (int count = 0; count < 2; count++)
+            {
+                COUT << "=================================== COUNT : " << count << ENDL;
+                
+                CMatrix<double> AMatrix(AMatrixRef);
+                std::vector<double> ref_xVector = GenVec(AMatrix.GetSize(), 20);
+                std::vector<double> bVector = AMatrix * ref_xVector;
+                CMatrix<double> LMatirx(AMatrix.GetSize());
 
-				double start_time = omp_get_wtime();
+                double start_time = omp_get_wtime();
 
-				CHECK_STATUS(CholeskyBlockDecompositionWithoutCollect(AMatrix, LMatirx, countTreadNum));
-				CHECK_TIME("Decomposition");
+                CHECK_STATUS(CholeskyBlockDecompositionWithoutCollect(AMatrix, LMatirx, countTreadNum));
+                CHECK_TIME("Decomposition");
 
-				COUT << "====================" << ENDL;
-				COUT << "Time: " << omp_get_wtime() - start_time << ENDL;
-				COUT << "====================" << ENDL;
+                COUT << "====================" << ENDL;
+                COUT << "Time: " << omp_get_wtime() - start_time << ENDL;
+                COUT << "====================" << ENDL;
 
-				std::vector<double> xVector(size);
-				CHECK_STATUS(ReverseMotion(LMatirx, bVector, xVector));
-				CHECK_TIME("Reverse");
+                std::vector<double> xVector(size);
+                CHECK_STATUS(ReverseMotion(LMatirx, bVector, xVector));
+                CHECK_TIME("Reverse");
 
-				CHECK_STATUS(PRKK(ref_xVector, xVector, ACCURACY));
-				CHECK_TIME("PRKK");
-			}
-		}
-	}
+                CHECK_STATUS(PRKK(ref_xVector, xVector, ACCURACY));
+                CHECK_TIME("PRKK");
+            }
+        }
+    }
 #endif
 
-	int size = 3;
-	int ProcNum = 1;
+    int size = 3;
+    int ProcNum = 1;
 
-	std::vector<double> initVec(pow(size, 2));
-	CHECK_STATUS(GeneratePDSM(size, 1, 9, initVec));
+    std::vector<double> initVec(pow(size, 2));
+    CHECK_STATUS(GeneratePDSM(size, 1, 9, initVec));
 
-	CMatrix<double> AMatrix(initVec);
-	std::vector<double> ref_xVector = GenVec(AMatrix.GetSize(), 20);
-	std::vector<double> bVector = AMatrix * ref_xVector;
-	CMatrix<double> LMatirx(AMatrix.GetSize());
+    CMatrix<double> AMatrix(initVec);
+    std::vector<double> ref_xVector = GenVec(AMatrix.GetSize(), 20);
+    std::vector<double> bVector = AMatrix * ref_xVector;
+    CMatrix<double> LMatirx(AMatrix.GetSize());
 
-	CHECK_STATUS(CholeskyBlockDecompositionWithoutCollect(AMatrix, LMatirx, ProcNum));
+    CHECK_STATUS(CholeskyBlockDecompositionWithoutCollect(AMatrix, LMatirx, ProcNum));
 
-	// -------------------------------------------------------------------------------
-	int n = size;
-	double *A = new double[pow(n, 2)];
-	for (int i = 0; i < pow(n,2); i++)
-	{
-		A[i] = initVec[i];
-	}
-	double *L = new double[pow(n, 2)];
+    // -------------------------------------------------------------------------------
+    int n = size;
+    double *A = new double[pow(n, 2)];
+    for (int i = 0; i < pow(n,2); i++)
+    {
+        A[i] = initVec[i];
+    }
+    double *L = new double[pow(n, 2)];
 
-	omp_set_num_threads(ProcNum);
-	Cholesky_Decomposition(A, L, n);
+    omp_set_num_threads(ProcNum);
+    Cholesky_Decomposition(A, L, n);
 
-	if (CompareMatrixVsArray(LMatirx, L))
-		COUT << "OK";
-	else
-		COUT << "FAILED";
+    if (CompareMatrixVsArray(LMatirx, L))
+        COUT << "OK";
+    else
+        COUT << "FAILED";
 #endif
 
 #ifdef CONJUGATE_GRADIENT_METHOD
-	
+    
 
 
 #endif
 
-	READLN;
+    READLN;
 
     return 0;
 }

@@ -12,8 +12,6 @@
 #define CHECK_STATUS(func) if (func != PNMStatusOk) COUT << "Something goes wrong :(" << ENDL
 #define CHECK_TIME(name) COUT << name << " - OK" << ENDL
 
-#define ACCURACY 0.00001
-
 //#define CHOLESKY_DECOMPOSITION
 #define CONJUGATE_GRADIENT_METHOD
 
@@ -133,8 +131,45 @@ void ReverseMotion(CMatrix<double> LMatrix, std::vector<double> bVector, std::ve
 ///////////////// Conjugate gradient method
 //////////////////////////////////////////////////
 // Реализовать метод сопряженных градиентов для решения СЛАУ Ax=b с симметричной положительно определенной разреженной матрицей A и плотным вектором b. 
-//
-//
+// Ax = b | A - Разреженая квадратная симетричная положительно определенная матрица, x и b - плотные векторы
+// |x| <= 1
+#define ACCURACY 0.00000001
+#define MAX_SIZE 100000
+#define MAX_NOT_NULL_NUMBER 10000000
+
+struct CRSMatrix
+{
+	int n; // Число строк в матрице 
+	int m; // Число столбцов в матрице 
+	int nz; // Число ненулевых элементов в разреженной симметричной матрице, лежащих не ниже главной диагонали 
+	std::vector<double> val; // Массив значений матрицы по строкам 
+	std::vector<int> colIndex; // Массив номеров столбцов 
+	std::vector<int> rowPtr; // Массив индексов начала строк 
+
+	CRSMatrix()
+	{
+		n = 0;
+		m = 0;
+		nz = 0;
+	}
+
+	CRSMatrix(int size, int _nz, std::vector<double> _val, std::vector<int> _colIndex, std::vector<int> _rowPtr) : n(size), m(size), nz(_nz)
+	{
+		for (int i = 0; i < _val.size(); i++)
+			val.push_back(_val[i]);
+		for (int i = 0; i < _colIndex.size(); i++)
+			colIndex.push_back(_colIndex[i]);
+		for (int i = 0; i < _rowPtr.size(); i++)
+			rowPtr.push_back(_rowPtr[i]);
+	}
+};
+
+// eps - Критерий остановки
+// max_iter – критерий остановки: число итераций больше max_ite
+void SLE_Solver_CRS(CRSMatrix & A, double * b, double eps, int max_iter, double * x, int & count)
+{
+
+}
 
 //////////////////////////////////////////////////
 ///////////////// Softgrader

@@ -139,30 +139,163 @@ void ReverseMotion(CMatrix<double> LMatrix, std::vector<double> bVector, std::ve
 
 struct CRSMatrix
 {
-	int n; // Число строк в матрице 
-	int m; // Число столбцов в матрице 
+private:
+	void InsertVecPos(std::vector<double> &vec, int index, double value)
+	{
+		std::vector<double> vecRes;
+
+		for (int i = 0; i < vec.size(); i++)
+		{
+			if (i == index)
+				vecRes.push_back(value);
+
+			vecRes.push_back(vec[i]);
+		}
+
+		if (vec.size() <= index)
+		{
+			vecRes.push_back(value);
+		}
+
+		vec = vecRes;
+	}
+
+	void InsertVecPos(std::vector<int> &vec, int index, int value)
+	{
+		std::vector<int> vecRes;
+
+		for (int i = 0; i < vec.size(); i++)
+		{
+			if (i == index)
+				vecRes.push_back(value);
+
+			vecRes.push_back(vec[i]);
+		}
+
+		if (vec.size() <= index)
+		{
+			vecRes.push_back(value);
+		}
+
+		vec = vecRes;
+	}
+
+public:
+	int n; // Размерность матрицы
 	int nz; // Число ненулевых элементов в разреженной симметричной матрице, лежащих не ниже главной диагонали 
 	std::vector<double> val; // Массив значений матрицы по строкам 
 	std::vector<int> colIndex; // Массив номеров столбцов 
-	std::vector<int> rowPtr; // Массив индексов начала строк 
+	std::vector<int> rowPtr; // Массив индексов начала строк
 
-	CRSMatrix()
+	CRSMatrix(int _n)
 	{
-		n = 0;
-		m = 0;
+		n = _n;
 		nz = 0;
+		for (int i = 0; i < n; i++)
+		{
+			rowPtr.push_back(0);
+		}
+
+		rowPtr.push_back(0);
 	}
 
-	CRSMatrix(int size, int _nz, std::vector<double> _val, std::vector<int> _colIndex, std::vector<int> _rowPtr) : n(size), m(size), nz(_nz)
+	double GetValue(int i, int j)
 	{
-		for (int i = 0; i < _val.size(); i++)
-			val.push_back(_val[i]);
-		for (int i = 0; i < _colIndex.size(); i++)
-			colIndex.push_back(_colIndex[i]);
-		for (int i = 0; i < _rowPtr.size(); i++)
-			rowPtr.push_back(_rowPtr[i]);
+		for (int count = rowPtr[i]; count < rowPtr[i + 1]; count++)
+		{
+			if (colIndex[count] == j)
+				return val[count];
+		}
+
+		return 0;
+	}
+
+	void SetValue(int i, int j, double value)
+	{
+		if (value != 0 && GetValue(i,j) == 0)
+			nz++;
+
+		int index = rowPtr[i + 1];
+
+		for (int count = rowPtr[i]; count < rowPtr[i + 1]; count++)
+		{
+			if (j < colIndex[count])
+			{
+				index = count;
+				break;
+			}
+			else if (j == colIndex[count])
+			{
+				val[count] = value;
+				colIndex[count] = j;
+				return;
+			}
+		}
+
+		InsertVecPos(val, index, value);
+		InsertVecPos(colIndex, index, j);
+
+		for (int rowCount = i + 1; rowCount < n + 1; rowCount++)
+			rowPtr[rowCount]++;
 	}
 };
+
+void GenVecWithoutNull(std::vector<double> &vec, int n, int var)
+{
+	for (int i = 0; i < n; i++)
+	{
+		int randVal = RAND(1, var);
+		vec.push_back(pow(-1, RAND(0, 1)) * randVal);
+	}
+}
+
+// nz - n = четное
+void InitCRSMatrix(CRSMatrix &matrix, int n, int nz)
+{
+	std::vector<double> initVec;
+	const int varNum = 9;
+
+	// 1. Сгенерировать вектор размерности ((nz - n)/2) без 0
+	GenVecWithoutNull(initVec, (nz - n) / 2, varNum);
+
+	// 2. Рандомно разместить его в верхнем треугольнике
+	for (int i = 0; i < initVec.size(); i++)
+	{
+		int indexI, indexJ;
+		do
+		{
+			indexI = rand() % (n - 1); // RAND(0, (n - 2));
+			indexJ = rand() % (n - indexI - 1) + indexI + 1; // RAND(indexI + 1, (n - 1));
+		} while (matrix.GetValue(indexI, indexJ) != 0);
+
+		matrix.SetValue(indexI, indexJ, initVec[i]);
+		matrix.SetValue(indexJ, indexI, initVec[i]);
+	}
+
+	for (int i = 0; i < n; i++)
+	{
+		for (int j = 0; j < n; j++)
+		{
+			COUT << matrix.GetValue(i, j) << "	";
+		}
+		COUT << ENDL;
+	}
+
+	// 3. Заполнить Правильно главную диагональ
+	for (int i = 0; i < n; i++)
+	{
+		double sum = 0;
+		for (int j = 0; j < n; j++)
+		{
+			sum += abs(matrix.GetValue(i, j));
+		}
+
+		if (sum == 0)
+			sum = RAND(1, varNum);
+
+		matrix.SetValue(i, i, sum);
+	}
+}
 
 // eps - Критерий остановки
 // max_iter – критерий остановки: число итераций больше max_ite
@@ -415,11 +548,24 @@ int main()
         COUT << "FAILED";
 #endif
 
-#ifdef CONJUGATE_GRADIENT_METHOD
+//#ifdef CONJUGATE_GRADIENT_METHOD
     
+	int n = 4;
 
+	CRSMatrix matrix(n);
+	InitCRSMatrix(matrix, n, 10);
 
-#endif
+	COUT << ENDL << "GeneratedMatrix:" << ENDL;
+	for (int i = 0; i < n; i++)
+	{
+		for (int j = 0; j < n; j++)
+		{
+			COUT << matrix.GetValue(i,j) << "	";
+		}
+		COUT << ENDL;
+	}
+
+//#endif
 
     READLN;
 

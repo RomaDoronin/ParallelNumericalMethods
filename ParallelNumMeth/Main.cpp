@@ -1,14 +1,23 @@
 #include "CMatrix.h"
+#include "ConjugateGradientMethod.h"
+#ifndef CRS_MATRIX
+#include "CRSMatrix.h"
+#endif
 #include <ctime>
 #include <omp.h>
 #include <list>
 
+#ifndef COUT
 #define COUT std::cout
 #define CIN std::cin
 #define ENDL std::endl
+#endif // COUT
+
 #define READLN std::cout << "Input any key..." << ENDL; int a; std::cin >> a
 #define COUT_BOOL(boolVar) if (boolVar) std::cout << "True"; else std::cout << "False"
+#ifndef RAND
 #define RAND(v_min, v_max) (rand() % (v_max - v_min + 1) + v_min)
+#endif
 #define CHECK_STATUS(func) if (func != PNMStatusOk) COUT << "Something goes wrong :(" << ENDL
 #define CHECK_TIME(name) COUT << name << " - OK" << ENDL
 
@@ -136,172 +145,15 @@ void ReverseMotion(CMatrix<double> LMatrix, std::vector<double> bVector, std::ve
 #define ACCURACY 0.00000001
 #define MAX_SIZE 100000
 #define MAX_NOT_NULL_NUMBER 10000000
-
-struct CRSMatrix
-{
-private:
-	void InsertVecPos(std::vector<double> &vec, int index, double value)
-	{
-		std::vector<double> vecRes;
-
-		for (int i = 0; i < vec.size(); i++)
-		{
-			if (i == index)
-				vecRes.push_back(value);
-
-			vecRes.push_back(vec[i]);
-		}
-
-		if (vec.size() <= index)
-		{
-			vecRes.push_back(value);
-		}
-
-		vec = vecRes;
-	}
-
-	void InsertVecPos(std::vector<int> &vec, int index, int value)
-	{
-		std::vector<int> vecRes;
-
-		for (int i = 0; i < vec.size(); i++)
-		{
-			if (i == index)
-				vecRes.push_back(value);
-
-			vecRes.push_back(vec[i]);
-		}
-
-		if (vec.size() <= index)
-		{
-			vecRes.push_back(value);
-		}
-
-		vec = vecRes;
-	}
-
-public:
-	int n; // Размерность матрицы
-	int nz; // Число ненулевых элементов в разреженной симметричной матрице, лежащих не ниже главной диагонали 
-	std::vector<double> val; // Массив значений матрицы по строкам 
-	std::vector<int> colIndex; // Массив номеров столбцов 
-	std::vector<int> rowPtr; // Массив индексов начала строк
-
-	CRSMatrix(int _n)
-	{
-		n = _n;
-		nz = 0;
-		for (int i = 0; i < n; i++)
-		{
-			rowPtr.push_back(0);
-		}
-
-		rowPtr.push_back(0);
-	}
-
-	double GetValue(int i, int j)
-	{
-		for (int count = rowPtr[i]; count < rowPtr[i + 1]; count++)
-		{
-			if (colIndex[count] == j)
-				return val[count];
-		}
-
-		return 0;
-	}
-
-	void SetValue(int i, int j, double value)
-	{
-		if (value != 0 && GetValue(i,j) == 0)
-			nz++;
-
-		int index = rowPtr[i + 1];
-
-		for (int count = rowPtr[i]; count < rowPtr[i + 1]; count++)
-		{
-			if (j < colIndex[count])
-			{
-				index = count;
-				break;
-			}
-			else if (j == colIndex[count])
-			{
-				val[count] = value;
-				colIndex[count] = j;
-				return;
-			}
-		}
-
-		InsertVecPos(val, index, value);
-		InsertVecPos(colIndex, index, j);
-
-		for (int rowCount = i + 1; rowCount < n + 1; rowCount++)
-			rowPtr[rowCount]++;
-	}
-};
-
-void GenVecWithoutNull(std::vector<double> &vec, int n, int var)
-{
-	for (int i = 0; i < n; i++)
-	{
-		int randVal = RAND(1, var);
-		vec.push_back(pow(-1, RAND(0, 1)) * randVal);
-	}
-}
-
-// nz - n = четное
-void InitCRSMatrix(CRSMatrix &matrix, int n, int nz)
-{
-	std::vector<double> initVec;
-	const int varNum = 9;
-
-	// 1. Сгенерировать вектор размерности ((nz - n)/2) без 0
-	GenVecWithoutNull(initVec, (nz - n) / 2, varNum);
-
-	// 2. Рандомно разместить его в верхнем треугольнике
-	for (int i = 0; i < initVec.size(); i++)
-	{
-		int indexI, indexJ;
-		do
-		{
-			indexI = rand() % (n - 1); // RAND(0, (n - 2));
-			indexJ = rand() % (n - indexI - 1) + indexI + 1; // RAND(indexI + 1, (n - 1));
-		} while (matrix.GetValue(indexI, indexJ) != 0);
-
-		matrix.SetValue(indexI, indexJ, initVec[i]);
-		matrix.SetValue(indexJ, indexI, initVec[i]);
-	}
-
-	for (int i = 0; i < n; i++)
-	{
-		for (int j = 0; j < n; j++)
-		{
-			COUT << matrix.GetValue(i, j) << "	";
-		}
-		COUT << ENDL;
-	}
-
-	// 3. Заполнить Правильно главную диагональ
-	for (int i = 0; i < n; i++)
-	{
-		double sum = 0;
-		for (int j = 0; j < n; j++)
-		{
-			sum += abs(matrix.GetValue(i, j));
-		}
-
-		if (sum == 0)
-			sum = RAND(1, varNum);
-
-		matrix.SetValue(i, i, sum);
-	}
-}
+#define MAX_ITER 100
 
 // eps - Критерий остановки
 // max_iter – критерий остановки: число итераций больше max_ite
-void SLE_Solver_CRS(CRSMatrix & A, double * b, double eps, int max_iter, double * x, int & count)
+void SLE_Solver_CRS_Serial(CRSMatrix & A, double * b, double eps, int max_iter, double * x, int & count)
 {
+	ConjugateGradientMethod cgm;
 
+	cgm.Solve(A, b, eps, max_iter, x, count);
 }
 
 //////////////////////////////////////////////////
@@ -343,6 +195,10 @@ void Cholesky_Decomposition(double * A, double * L, int n)
     }
 }
 
+void SLE_Solver_CRS(CRSMatrix & A, double * b, double eps, int max_iter, double * x, int & count)
+{
+
+}
 
 //////////////////////////////////////////////////
 ///////////////// Local function
@@ -427,6 +283,17 @@ bool PRKK(std::vector<double> res1, std::vector<double> res2, double accuracy)
     }
 
     return true;
+}
+
+bool PRKK(double * res1, double * res2, int n, double accuracy)
+{
+	for (int i = 0; i < n; i++)
+	{
+		if (abs(res1[i] - res2[i]) > accuracy)
+			return false;
+	}
+
+	return true;
 }
 
 std::vector<double> GetCopyVector(std::vector<double> vec)
@@ -551,19 +418,23 @@ int main()
 //#ifdef CONJUGATE_GRADIENT_METHOD
     
 	int n = 4;
+	CRSMatrix A(n);
+	InitCRSMatrix(A, n, n * 2);
+	// Сгенерировать решение
+	double * xRef;
 
-	CRSMatrix matrix(n);
-	InitCRSMatrix(matrix, n, 10);
+	// Подсчет по решению вектора b
+	double * b;
+	
+	// Задать начальное приближение
+	double * x;
 
-	COUT << ENDL << "GeneratedMatrix:" << ENDL;
-	for (int i = 0; i < n; i++)
-	{
-		for (int j = 0; j < n; j++)
-		{
-			COUT << matrix.GetValue(i,j) << "	";
-		}
-		COUT << ENDL;
-	}
+	int count = 0;
+
+	SLE_Solver_CRS_Serial(A, b, ACCURACY, MAX_ITER, x, count);
+
+	COUT << "PRKK : ";
+	COUT_BOOL(PRKK(x, xRef, n, ACCURACY));
 
 //#endif
 

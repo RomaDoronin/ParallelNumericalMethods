@@ -149,11 +149,11 @@ void ReverseMotion(CMatrix<double> LMatrix, std::vector<double> bVector, std::ve
 
 // eps - Критерий остановки
 // max_iter – критерий остановки: число итераций больше max_ite
-void SLE_Solver_CRS_Serial(CRSMatrix & A, double * b, double eps, int max_iter, double * x, int & count)
+void SLE_Solver_CRS_Serial(CRSMatrix & A, double *b, double eps, int max_iter, double *x, int & count)
 {
-	ConjugateGradientMethod cgm;
+    ConjugateGradientMethod cgm;
 
-	cgm.Solve(A, b, eps, max_iter, x, count);
+    cgm.Solve(A, b, eps, max_iter, x, count);
 }
 
 //////////////////////////////////////////////////
@@ -203,9 +203,9 @@ void SLE_Solver_CRS(CRSMatrix & A, double * b, double eps, int max_iter, double 
 //////////////////////////////////////////////////
 ///////////////// Local function
 //////////////////////////////////////////////////
-void PrintVector(std::vector<double> vec)
+void PrintVector(double * vec, int n)
 {
-    for (int i = 0; i < vec.size(); i++)
+    for (int i = 0; i < n; i++)
     {
         COUT << vec[i] << "	";
     }
@@ -213,13 +213,15 @@ void PrintVector(std::vector<double> vec)
     COUT << ENDL;
 }
 
-std::vector<double> GenVec(int size, int var)
+double* GenVec(int size, int var)
 {
-    std::vector<double> res;
+    double * res = new double[size];
 
     for (int i = 0; i < size; i++)
     {
-        res.push_back(RAND(-var, var));
+		do {
+			res[i] = RAND(-var, var);
+		} while (res[i] == 0);
     }
 
     return res;
@@ -287,13 +289,13 @@ bool PRKK(std::vector<double> res1, std::vector<double> res2, double accuracy)
 
 bool PRKK(double * res1, double * res2, int n, double accuracy)
 {
-	for (int i = 0; i < n; i++)
-	{
-		if (abs(res1[i] - res2[i]) > accuracy)
-			return false;
-	}
+    for (int i = 0; i < n; i++)
+    {
+        if (abs(res1[i] - res2[i]) > accuracy)
+            return false;
+    }
 
-	return true;
+    return true;
 }
 
 std::vector<double> GetCopyVector(std::vector<double> vec)
@@ -327,10 +329,11 @@ bool CompareMatrixVsArray(CMatrix<double> matrix, double *arr)
 //////////////////////////////////////////////////
 int main()
 {
+	srand(time(0));
+
 #ifdef CHOLESKY_DECOMPOSITION
 
 #ifdef TESTPROG
-    srand(time(0));
 
     int ProcNum = 4;
 
@@ -417,24 +420,57 @@ int main()
 
 //#ifdef CONJUGATE_GRADIENT_METHOD
     
-	int n = 4;
-	CRSMatrix A(n);
-	InitCRSMatrix(A, n, n * 2);
-	// Сгенерировать решение
-	double * xRef;
+    int n = 317;
+    CRSMatrix A(n);
 
-	// Подсчет по решению вектора b
-	double * b;
-	
-	// Задать начальное приближение
-	double * x;
+    // Сгенерировать симметричную положительноопределенную матрицу
+    InitCRSMatrix(A, n, n * n / 4);
+	CHECK_TIME("Gen");
 
-	int count = 0;
+	//PrintCRSMatrix(A);
 
-	SLE_Solver_CRS_Serial(A, b, ACCURACY, MAX_ITER, x, count);
+    // Сгенерировать решение
+    double * xRef = GenVec(n, 9);
+	if (n < 5)
+	{
+		COUT << "xRef: ";
+		PrintVector(xRef, n);
+	}
 
-	COUT << "PRKK : ";
-	COUT_BOOL(PRKK(x, xRef, n, ACCURACY));
+    // Подсчетать по решению вектор b
+	double * b = new double[n];
+	VectorMultMatrix(A, xRef, n, b);
+	if (n < 5)
+	{
+		COUT << "b: ";
+		PrintVector(b, n);
+	}
+    
+    // Задать начальное приближение
+    double * x = new double[n];
+    for (int i = 0; i < n; i++)
+        x[i] = 1;
+
+    int count = 0;
+
+	CHECK_TIME("Start");
+	double start_time = omp_get_wtime();
+    SLE_Solver_CRS_Serial(A, b, ACCURACY, MAX_ITER, x, count);
+	COUT << "====================" << ENDL;
+	COUT << "Time: " << omp_get_wtime() - start_time << ENDL;
+	COUT << "====================" << ENDL;
+	COUT << "PRKK : "; COUT_BOOL(PRKK(x, xRef, n, ACCURACY)); COUT << ENDL;
+	COUT << "====================" << ENDL;
+
+	if (n < 5)
+	{
+		COUT << "x: ";
+		PrintVector(x, n);
+	}
+
+	delete xRef;
+	delete b;
+	delete x;
 
 //#endif
 

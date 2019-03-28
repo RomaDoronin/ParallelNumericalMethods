@@ -54,6 +54,13 @@ CRSMatrix::CRSMatrix(int _n)
 
 double CRSMatrix::GetValue(int i, int j)
 {
+	if (j < i)
+	{
+		int tmp = i;
+		i = j;
+		j = tmp;
+	}
+
     for (int count = rowPtr[i]; count < rowPtr[i + 1]; count++)
     {
         if (colIndex[count] == j)
@@ -65,8 +72,8 @@ double CRSMatrix::GetValue(int i, int j)
 
 void CRSMatrix::SetValue(int i, int j, double value)
 {
-    if (value != 0 && GetValue(i, j) == 0)
-        nz++;
+    /*if (value != 0 && GetValue(i, j) == 0)
+        nz++;*/
 
     int index = rowPtr[i + 1];
 
@@ -95,4 +102,70 @@ void CRSMatrix::SetValue(int i, int j, double value)
 int CRSMatrix::GetN()
 {
     return n;
+}
+
+void GenVecWithoutNull(std::vector<double> &vec, int n, int var)
+{
+    for (int i = 0; i < n; i++)
+    {
+        int randVal = RAND(1, var);
+        vec.push_back(pow(-1, RAND(0, 1)) * randVal);
+    }
+}
+
+void InitCRSMatrix(CRSMatrix &matrix, int n, int nz)
+{
+    std::vector<double> initVec;
+    const int varNum = 9;
+
+    // 1. Сгенерировать вектор размерности ((nz - n)/2) без 0
+    GenVecWithoutNull(initVec, (nz - n) / 2, varNum);
+
+    // 2. Рандомно разместить его в верхнем треугольнике
+    for (int i = 0; i < initVec.size(); i++)
+    {
+		COUT << "i: " << i << ENDL;
+
+        int indexI, indexJ;
+        //do
+        //{
+            indexI = rand() % (n - 1); // RAND(0, (n - 2));
+            indexJ = rand() % (n - indexI - 1) + indexI + 1; // RAND(indexI + 1, (n - 1));
+        //} while (matrix.GetValue(indexI, indexJ) != 0);
+
+        matrix.SetValue(indexI, indexJ, initVec[i]);
+    }
+
+    // 3. Заполнить Правильно главную диагональ
+    for (int i = 0; i < n; i++)
+    {
+        double sum = 0;
+        for (int j = 0; j < n; j++)
+        {
+            sum += abs(matrix.GetValue(i, j));
+        }
+
+        if (sum == 0)
+            sum = RAND(1, varNum);
+
+        matrix.SetValue(i, i, sum);
+    }
+
+	if (n < 5)
+	{
+		PrintCRSMatrix(matrix);
+	}
+}
+
+void PrintCRSMatrix(CRSMatrix &matrix)
+{
+	COUT << ENDL << "CRSMatrix: " << ENDL;
+	for (int i = 0; i < matrix.GetN(); i++)
+	{
+		for (int j = 0; j < matrix.GetN(); j++)
+		{
+			COUT << matrix.GetValue(i, j) << "	";
+		}
+		COUT << ENDL;
+	}
 }

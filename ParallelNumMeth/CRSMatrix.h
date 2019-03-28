@@ -32,59 +32,9 @@ public:
     int GetN();
 };
 
-void GenVecWithoutNull(std::vector<double> &vec, int n, int var)
-{
-    for (int i = 0; i < n; i++)
-    {
-        int randVal = RAND(1, var);
-        vec.push_back(pow(-1, RAND(0, 1)) * randVal);
-    }
-}
+void GenVecWithoutNull(std::vector<double> &vec, int n, int var);
 
 // nz - n = четное
-void InitCRSMatrix(CRSMatrix &matrix, int n, int nz)
-{
-    std::vector<double> initVec;
-    const int varNum = 9;
+void InitCRSMatrix(CRSMatrix &matrix, int n, int nz);
 
-    // 1. Сгенерировать вектор размерности ((nz - n)/2) без 0
-    GenVecWithoutNull(initVec, (nz - n) / 2, varNum);
-
-    // 2. Рандомно разместить его в верхнем треугольнике
-    for (int i = 0; i < initVec.size(); i++)
-    {
-        int indexI, indexJ;
-        do
-        {
-            indexI = rand() % (n - 1); // RAND(0, (n - 2));
-            indexJ = rand() % (n - indexI - 1) + indexI + 1; // RAND(indexI + 1, (n - 1));
-        } while (matrix.GetValue(indexI, indexJ) != 0);
-
-        matrix.SetValue(indexI, indexJ, initVec[i]);
-        matrix.SetValue(indexJ, indexI, initVec[i]);
-    }
-
-    for (int i = 0; i < n; i++)
-    {
-        for (int j = 0; j < n; j++)
-        {
-            COUT << matrix.GetValue(i, j) << "	";
-        }
-        COUT << ENDL;
-    }
-
-    // 3. Заполнить Правильно главную диагональ
-    for (int i = 0; i < n; i++)
-    {
-        double sum = 0;
-        for (int j = 0; j < n; j++)
-        {
-            sum += abs(matrix.GetValue(i, j));
-        }
-
-        if (sum == 0)
-            sum = RAND(1, varNum);
-
-        matrix.SetValue(i, i, sum);
-    }
-}
+void PrintCRSMatrix(CRSMatrix &matrix);

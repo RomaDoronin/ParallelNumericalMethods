@@ -1,5 +1,6 @@
 #pragma once
 #include "CRSMatrix.h"
+#include <omp.h>
 
 class ConjugateGradientMethod
 {
@@ -11,24 +12,25 @@ private:
     double CulcBet(double * r, double * r1);
 
     int n;
+	int ProcNum;
 	
 	double * vectorMultMatrix;
 	double * vectorMultConst;
 
 public:
-    ConjugateGradientMethod();
+    ConjugateGradientMethod(int _ProcNum);
     ~ConjugateGradientMethod();
 
     void Solve(CRSMatrix & A, double * b, double eps, int max_iter, double * x, int & count);
 };
 
-double VectorDifSumVal(double * v1, double * v2, int n);
+double VectorDifSumVal(double * v1, double * v2, int n, int ProcNum);
 
 void VectorSum(double * v1, double * v2, int n, double * vRes);
 
 void VectorMultConst(double val, double * v1, int n, double * vRes);
 
-double VectorScalarMult(double * v1, double * v2, int n);
+double VectorScalarMult(double * v1, double * v2, int n, int ProcNum);
 
 void VectorMultMatrix(CRSMatrix & A, double * v1, int n, double * vRes);
 

@@ -92,8 +92,10 @@ void CRSMatrix::SetValue(int i, int j, double value)
         }
     }
 
-    InsertVecPos(val, index, value);
-    InsertVecPos(colIndex, index, j);
+	val.insert(val.begin() + index, value);
+    //InsertVecPos(val, index, value);
+	colIndex.insert(colIndex.begin() + index, j);
+    //InsertVecPos(colIndex, index, j);
 
     for (int rowCount = i + 1; rowCount < n + 1; rowCount++)
         rowPtr[rowCount]++;
@@ -106,6 +108,7 @@ int CRSMatrix::GetN()
 
 void GenVecWithoutNull(std::vector<double> &vec, int n, int var)
 {
+//#pragma omp parallel for
     for (int i = 0; i < n; i++)
     {
         int randVal = RAND(1, var);
@@ -118,13 +121,16 @@ void InitCRSMatrix(CRSMatrix &matrix, int n, int nz)
     std::vector<double> initVec;
     const int varNum = 9;
 
+	COUT << "NZ: " << nz << ENDL;
+
     // 1. Сгенерировать вектор размерности ((nz - n)/2) без 0
     GenVecWithoutNull(initVec, (nz - n) / 2, varNum);
 
     // 2. Рандомно разместить его в верхнем треугольнике
+//#pragma omp parallel for
     for (int i = 0; i < initVec.size(); i++)
     {
-		COUT << "i: " << i << ENDL;
+		//COUT << "i: " << i << ENDL;
 
         int indexI, indexJ;
         //do
@@ -137,6 +143,7 @@ void InitCRSMatrix(CRSMatrix &matrix, int n, int nz)
     }
 
     // 3. Заполнить Правильно главную диагональ
+//#pragma omp parallel for
     for (int i = 0; i < n; i++)
     {
         double sum = 0;

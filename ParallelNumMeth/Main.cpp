@@ -4,7 +4,6 @@
 #include "CRSMatrix.h"
 #endif
 #include <ctime>
-#include <omp.h>
 #include <list>
 
 #ifndef COUT
@@ -23,6 +22,11 @@
 
 //#define CHOLESKY_DECOMPOSITION
 #define CONJUGATE_GRADIENT_METHOD
+
+/**/
+#define ELEM_NUM 10000
+#define PROC_NUM 3
+/**/
 
 //////////////////////////////////////////////////
 ///////////////// Cholesky decomposition
@@ -151,7 +155,11 @@ void ReverseMotion(CMatrix<double> LMatrix, std::vector<double> bVector, std::ve
 // max_iter Ц критерий остановки: число итераций больше max_ite
 void SLE_Solver_CRS_Serial(CRSMatrix & A, double *b, double eps, int max_iter, double *x, int & count)
 {
-    ConjugateGradientMethod cgm;
+	int ProcNum = PROC_NUM;
+
+    ConjugateGradientMethod cgm(ProcNum);
+
+	omp_set_num_threads(ProcNum);
 
     cgm.Solve(A, b, eps, max_iter, x, count);
 }
@@ -420,13 +428,15 @@ int main()
 
 //#ifdef CONJUGATE_GRADIENT_METHOD
     
-    int n = 317;
+    int n = ELEM_NUM;
     CRSMatrix A(n);
 
-    // —генерировать симметричную положительноопределенную матрицу
-    InitCRSMatrix(A, n, n * n / 4);
-	CHECK_TIME("Gen");
+	double start_time = omp_get_wtime();
 
+    // —генерировать симметричную положительноопределенную матрицу
+    InitCRSMatrix(A, n, n * n * 0.001);
+	CHECK_TIME("Gen");
+	COUT << "Gen time: " << omp_get_wtime() - start_time << ENDL;
 	//PrintCRSMatrix(A);
 
     // —генерировать решение
@@ -454,7 +464,7 @@ int main()
     int count = 0;
 
 	CHECK_TIME("Start");
-	double start_time = omp_get_wtime();
+	start_time = omp_get_wtime();
     SLE_Solver_CRS_Serial(A, b, ACCURACY, MAX_ITER, x, count);
 	COUT << "====================" << ENDL;
 	COUT << "Time: " << omp_get_wtime() - start_time << ENDL;

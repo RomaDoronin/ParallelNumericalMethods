@@ -25,7 +25,7 @@
 
 /**/
 #define ELEM_NUM 10000
-#define PROC_NUM 3
+#define PROC_NUM 8
 /**/
 
 //////////////////////////////////////////////////
@@ -153,13 +153,9 @@ void ReverseMotion(CMatrix<double> LMatrix, std::vector<double> bVector, std::ve
 
 // eps - Критерий остановки
 // max_iter – критерий остановки: число итераций больше max_ite
-void SLE_Solver_CRS_Serial(CRSMatrix & A, double *b, double eps, int max_iter, double *x, int & count)
+void SLE_Solver_CRS_Serial(const CRSMatrix & A, double *b, double eps, int max_iter, double *x, int & count, int ProcNum)
 {
-	int ProcNum = PROC_NUM;
-
     ConjugateGradientMethod cgm(ProcNum);
-
-	omp_set_num_threads(ProcNum);
 
     cgm.Solve(A, b, eps, max_iter, x, count);
 }
@@ -227,9 +223,9 @@ double* GenVec(int size, int var)
 
     for (int i = 0; i < size; i++)
     {
-		do {
-			res[i] = RAND(-var, var);
-		} while (res[i] == 0);
+        do {
+            res[i] = RAND(-var, var);
+        } while (res[i] == 0);
     }
 
     return res;
@@ -331,13 +327,41 @@ bool CompareMatrixVsArray(CMatrix<double> matrix, double *arr)
     return true;
 }
 
+void GetRefA(CRSMatrix& matrix)
+{
+	if (matrix.GetN() == 4)
+	{
+		matrix.SetValue(0, 0, 19);
+		matrix.SetValue(0, 1, 9);
+		matrix.SetValue(0, 2, 1);
+		matrix.SetValue(0, 3, 9);
+
+		matrix.SetValue(1, 1, 23);
+		matrix.SetValue(1, 2, 10);
+		matrix.SetValue(1, 3, 4);
+
+		matrix.SetValue(2, 2, 20);
+		matrix.SetValue(2, 3, 9);
+
+		matrix.SetValue(3, 3, 22);
+	}
+}
+
+void GetRefX(double * x)
+{
+	x[0] = 1;
+	x[1] = 2;
+	x[2] = 3;
+	x[3] = 4;
+}
+
 
 //////////////////////////////////////////////////
 ///////////////// Main function
 //////////////////////////////////////////////////
 int main()
 {
-	srand(time(0));
+    srand(time(0));
 
 #ifdef CHOLESKY_DECOMPOSITION
 
@@ -428,33 +452,33 @@ int main()
 
 //#ifdef CONJUGATE_GRADIENT_METHOD
     
-    int n = ELEM_NUM;
+    /*int n = ELEM_NUM;
     CRSMatrix A(n);
 
-	double start_time = omp_get_wtime();
+    double start_time = omp_get_wtime();
 
     // Сгенерировать симметричную положительноопределенную матрицу
     InitCRSMatrix(A, n, n * n * 0.001);
-	CHECK_TIME("Gen");
-	COUT << "Gen time: " << omp_get_wtime() - start_time << ENDL;
-	//PrintCRSMatrix(A);
+    CHECK_TIME("Gen");
+    COUT << "Gen time: " << omp_get_wtime() - start_time << ENDL;
+    //PrintCRSMatrix(A);
 
     // Сгенерировать решение
     double * xRef = GenVec(n, 9);
-	if (n < 5)
-	{
-		COUT << "xRef: ";
-		PrintVector(xRef, n);
-	}
+    if (n < 5)
+    {
+    	COUT << "xRef: ";
+    	PrintVector(xRef, n);
+    }
 
     // Подсчетать по решению вектор b
-	double * b = new double[n];
-	VectorMultMatrix(A, xRef, n, b);
-	if (n < 5)
-	{
-		COUT << "b: ";
-		PrintVector(b, n);
-	}
+    double * b = new double[n];
+    VectorMultMatrix(A, xRef, n, b);
+    if (n < 5)
+    {
+    	COUT << "b: ";
+    	PrintVector(b, n);
+    }
     
     // Задать начальное приближение
     double * x = new double[n];
@@ -463,24 +487,81 @@ int main()
 
     int count = 0;
 
-	CHECK_TIME("Start");
-	start_time = omp_get_wtime();
+    CHECK_TIME("Start");
+    start_time = omp_get_wtime();
     SLE_Solver_CRS_Serial(A, b, ACCURACY, MAX_ITER, x, count);
-	COUT << "====================" << ENDL;
-	COUT << "Time: " << omp_get_wtime() - start_time << ENDL;
-	COUT << "====================" << ENDL;
-	COUT << "PRKK : "; COUT_BOOL(PRKK(x, xRef, n, ACCURACY)); COUT << ENDL;
-	COUT << "====================" << ENDL;
+    COUT << "====================" << ENDL;
+    COUT << "Time: " << omp_get_wtime() - start_time << ENDL;
+    COUT << "====================" << ENDL;
+    COUT << "PRKK : "; COUT_BOOL(PRKK(x, xRef, n, ACCURACY)); COUT << ENDL;
+    COUT << "====================" << ENDL;
 
-	if (n < 5)
-	{
-		COUT << "x: ";
-		PrintVector(x, n);
-	}
+    if (n < 5)
+    {
+    	COUT << "x: ";
+    	PrintVector(x, n);
+    }*/
 
-	delete xRef;
-	delete b;
-	delete x;
+    for (int n = 100; n <= 400; n += 100)
+    {
+		float coef;
+		if (n > 1000)
+			coef = 0.001;
+		else if (n > 100)
+			coef = 0.01;
+		else if (n > 10)
+			coef = 0.1;
+		else
+			coef = 0.5;
+
+        COUT << "=================================== SIZE : " << n << ENDL;
+
+        CRSMatrix A(n);
+        InitCRSMatrix(A, n, n * n * coef);
+		//GetRefA(A);
+
+        for (int countTreadNum = 1; countTreadNum < PROC_NUM + 1; countTreadNum++)
+        {
+            COUT << "=================================== COUNT TREAD NUM : " << countTreadNum << ENDL;
+			omp_set_num_threads(countTreadNum);
+
+            for (int count = 0; count < 2; count++)
+            {
+                COUT << "=================================== COUNT : " << count << ENDL;
+
+                // Сгенерировать решение
+                double * xRef = GenVec(n, 9);// = new double[n];
+				//GetRefX(xRef);
+				//COUT << "xRef: ";  PrintVector(xRef, n);
+
+                // Подсчетать по решению вектор b
+                double * b = new double[n];
+                VectorMultMatrix(A, xRef, n, b);
+				//COUT << "b: ";  PrintVector(b, n);
+                   
+                // Задать начальное приближение
+                double * x = new double[n];
+                for (int i = 0; i < n; i++)
+                    x[i] = 1;
+				//COUT << "x: ";  PrintVector(x, n);
+
+                int countTmp = 0;
+
+                double start_time = omp_get_wtime();
+                SLE_Solver_CRS_Serial(A, b, ACCURACY, MAX_ITER, x, countTmp, countTreadNum);
+				//COUT << "x: ";  PrintVector(x, n);
+                //COUT << "====================" << ENDL;
+                COUT << "Solution Time: " << omp_get_wtime() - start_time << ENDL;
+                //COUT << "====================" << ENDL;
+                COUT << "PRKK : "; COUT_BOOL(PRKK(x, xRef, n, ACCURACY)); COUT << ENDL;
+                //COUT << "====================" << ENDL;
+
+				delete xRef;
+				delete b;
+				delete x;
+            }
+        }
+    }
 
 //#endif
 

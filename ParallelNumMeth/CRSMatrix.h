@@ -25,11 +25,11 @@ private:
 public:
     CRSMatrix(int _n);
 
-    double GetValue(int i, int j);
+    double GetValue(int i, int j) const;
 
     void SetValue(int i, int j, double value);
 
-    int GetN();
+    int GetN() const;
 };
 
 void GenVecWithoutNull(std::vector<double> &vec, int n, int var);

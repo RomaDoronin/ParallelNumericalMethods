@@ -13,13 +13,13 @@ void ConjugateGradientMethod::CulcH(double * r1, double bet, double * h, double 
     return VectorSum(r1, vectorMultConst, n, culcRes);
 }
 
-double ConjugateGradientMethod::CulcAlf(double * r, double * h, CRSMatrix & A)
+double ConjugateGradientMethod::CulcAlf(double * r, double * h, const CRSMatrix & A)
 {
 	VectorMultMatrix(A, h, n, vectorMultMatrix);
     return VectorScalarMult(r, r, n, ProcNum) / VectorScalarMult(vectorMultMatrix, h, n, ProcNum);
 }
 
-void ConjugateGradientMethod::CulcR(double * r, double alf, double * h, CRSMatrix & A, double * culcRes)
+void ConjugateGradientMethod::CulcR(double * r, double alf, double * h, const CRSMatrix & A, double * culcRes)
 {
 	VectorMultMatrix(A, h, n, vectorMultMatrix);
 	VectorMultConst(-alf, vectorMultMatrix, n, vectorMultConst);
@@ -41,7 +41,7 @@ ConjugateGradientMethod::~ConjugateGradientMethod()
 	delete vectorMultConst;
 }
 
-void ConjugateGradientMethod::Solve(CRSMatrix & A, double *b, double eps, int max_iter, double *x, int & count)
+void ConjugateGradientMethod::Solve(const CRSMatrix & A, const double *b, double eps, int max_iter, double *x, int & count)
 {
     n = A.GetN();
 
@@ -70,8 +70,6 @@ void ConjugateGradientMethod::Solve(CRSMatrix & A, double *b, double eps, int ma
     
     while (VectorDifSumVal(x, xPr, n, ProcNum) > eps && max_iter >= count)
     {
-		COUT << "Step: " << count << ENDL;
-
 		Vec1CopyToVec2(r, rPr, n);
         CulcR(rPr, alf, h, A, r);  // R_s
         bet = CulcBet(rPr, r);     // BET_s-1
@@ -84,6 +82,8 @@ void ConjugateGradientMethod::Solve(CRSMatrix & A, double *b, double eps, int ma
         count++;
     }
 
+	COUT << "Num of Steps: " << count << ENDL;
+
 	delete r;
 	delete rPr;
 	delete h;
@@ -91,7 +91,7 @@ void ConjugateGradientMethod::Solve(CRSMatrix & A, double *b, double eps, int ma
 	delete xPr;
 }
 
-double VectorDifSumVal(double * v1, double * v2, int n, int ProcNum)
+double VectorDifSumVal(const double * v1, const double * v2, int n, int ProcNum)
 {
     double * sumArr = new double[ProcNum];
 
@@ -110,7 +110,19 @@ double VectorDifSumVal(double * v1, double * v2, int n, int ProcNum)
     return sum;
 }
 
-void VectorSum(double * v1, double * v2, int n, double * vRes)
+double VectorDifSumVal(const double * v1, const double * v2, int n)
+{
+	double sum = 0;
+
+	for (int i = 0; i < n; i++)
+	{
+		sum += abs(v1[i] - v2[i]);
+	}
+
+	return sum;
+}
+
+void VectorSum(const double * v1, const double * v2, int n, double * vRes)
 {
 #pragma omp parallel for
     for (int i = 0; i < n; i++)
@@ -119,7 +131,7 @@ void VectorSum(double * v1, double * v2, int n, double * vRes)
     }
 }
 
-void VectorMultConst(double val, double * v1, int n, double * vRes)
+void VectorMultConst(double val, const double * v1, int n, double * vRes)
 {
 #pragma omp parallel for
     for (int i = 0; i < n; i++)
@@ -147,7 +159,7 @@ double VectorScalarMult(double * v1, double * v2, int n, int ProcNum)
     return res;
 }
 
-void VectorMultMatrix(CRSMatrix & A, double * v1, int n, double * vRes)
+void VectorMultMatrix(const CRSMatrix & A, const double * v1, int n, double * vRes)
 {
 #pragma omp parallel for
     for (int i = 0; i < n; i++)
@@ -160,7 +172,7 @@ void VectorMultMatrix(CRSMatrix & A, double * v1, int n, double * vRes)
     }
 }
 
-void Vec1CopyToVec2(double * v1, double * v2, int n)
+void Vec1CopyToVec2(const double * v1, double * v2, int n)
 {
 #pragma omp parallel for
 	for (int i = 0; i < n; i++)

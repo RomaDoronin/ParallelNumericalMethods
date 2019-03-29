@@ -52,7 +52,7 @@ CRSMatrix::CRSMatrix(int _n)
     rowPtr.push_back(0);
 }
 
-double CRSMatrix::GetValue(int i, int j)
+double CRSMatrix::GetValue(int i, int j) const
 {
 	if (j < i)
 	{
@@ -101,7 +101,7 @@ void CRSMatrix::SetValue(int i, int j, double value)
         rowPtr[rowCount]++;
 }
 
-int CRSMatrix::GetN()
+int CRSMatrix::GetN() const
 {
     return n;
 }

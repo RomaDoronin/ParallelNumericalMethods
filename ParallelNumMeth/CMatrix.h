@@ -1,10 +1,22 @@
 #pragma once
 
+#ifndef _VECTOR_
 #include <vector>
+#endif
+#ifndef _IOSTREAM_
 #include <iostream>
+#endif
+#ifndef _FSTREAM_
 #include <fstream>
+#endif
+#ifndef _STRING_
 #include <string>
+#endif
+#ifndef _IOMANIP_
 #include <iomanip>
+#endif
+#define _CMATRIX_
+
 
 template <typename T>
 class CMatrix

@@ -1,10 +1,21 @@
+#ifndef _CMATRIX_
 #include "CMatrix.h"
+#endif
+#ifndef _CONJUGATEGRADIENTMETHOD_
 #include "ConjugateGradientMethod.h"
-#ifndef CRS_MATRIX
+#endif
+#ifndef _CRSMATRIX_
 #include "CRSMatrix.h"
 #endif
+#ifndef _CTIME_
 #include <ctime>
+#endif
+#ifndef _LIST_
 #include <list>
+#endif
+#ifndef _FSTREAM_
+#include <fstream>
+#endif
 
 #ifndef COUT
 #define COUT std::cout
@@ -20,13 +31,15 @@
 #define CHECK_STATUS(func) if (func != PNMStatusOk) COUT << "Something goes wrong :(" << ENDL
 #define CHECK_TIME(name) COUT << name << " - OK" << ENDL
 
-//#define CHOLESKY_DECOMPOSITION
-#define CONJUGATE_GRADIENT_METHOD
+#define CHOLESKY_DECOMPOSITION
+//#define CONJUGATE_GRADIENT_METHOD
 
 /**/
 #define ELEM_NUM 10000
 #define PROC_NUM 8
 /**/
+
+void PrintVector(double * vec, int rowSize, int colSize);
 
 //////////////////////////////////////////////////
 ///////////////// Cholesky decomposition
@@ -47,39 +60,21 @@ void CholeskyBlockDecompositionWithoutCollect(CMatrix<double> AMatrix, CMatrix<d
         // A[i][i] = sqtr(A[i][i])
         AMatrix.SetMatrixCell(i * size + i, sqrt(AMatrix[i * size + i]));
 
-#ifdef FILE_WORK
-        AMatrix.WriteMatrixInFile("tread_0.txt", "A[" + std::to_string(i) + "][" + std::to_string(i) + "] = sqtr(A[" + std::to_string(i) + "][" + std::to_string(i) + "])"
-            + " i = " + std::to_string(i));
-#endif
-
         // Делим все элеметны i-ого столбца ниже главной диагонали на i-ый элемент главной диагонали 
         // A[j][i] /= A[i][i]
-#pragma omp parallel for // OK
+#pragma omp parallel for
         for (int j = i + 1; j < size; j++)
         {
             AMatrix.SetMatrixCell(j * size + i, AMatrix[j * size + i] / AMatrix[i * size + i]);
-            
-#ifdef FILE_WORK
-            std::string filename = "tread_" + std::to_string(omp_get_thread_num()) + ".txt";
-            AMatrix.WriteMatrixInFile(filename, "A[" + std::to_string(j) + "][" + std::to_string(i) + "] = A[" + std::to_string(j) + "][" + std::to_string(i) + "] / A[" + std::to_string(i) + "][" + std::to_string(i) + "]"
-                + " i = " + std::to_string(i) + " j = " + std::to_string(j));
-#endif
         }
 
         // A[j][k] = A[j][k] - A[j][i] * A[k][i]
-//#pragma omp parallel for // OK
         for (int k = i + 1; k < size; k++)
         {
-#pragma omp parallel for // OK
+#pragma omp parallel for
             for (int j = k; j < size; j++)
             {
                 AMatrix.SetMatrixCell(j * size + k, AMatrix[j * size + k] - AMatrix[j * size + i] * AMatrix[k * size + i]);
-
-#ifdef FILE_WORK
-                std::string filename = "tread_" + std::to_string(omp_get_thread_num()) + ".txt";
-                AMatrix.WriteMatrixInFile(filename, "A[" + std::to_string(j) + "][" + std::to_string(k) + "] = A[" + std::to_string(j) + "][" + std::to_string(k) + "] - A[" + std::to_string(j) + "][" + std::to_string(i) + "] * A[" + std::to_string(k) + "][" + std::to_string(i) + "]"
-                    + " i = " + std::to_string(i) + " j = " + std::to_string(j) + " k = " + std::to_string(k));
-#endif
             }
         }
     }
@@ -139,31 +134,127 @@ void ReverseMotion(CMatrix<double> LMatrix, std::vector<double> bVector, std::ve
     }
 }
 
-
-//////////////////////////////////////////////////
-///////////////// Conjugate gradient method
-//////////////////////////////////////////////////
-// Реализовать метод сопряженных градиентов для решения СЛАУ Ax=b с симметричной положительно определенной разреженной матрицей A и плотным вектором b. 
-// Ax = b | A - Разреженая квадратная симетричная положительно определенная матрица, x и b - плотные векторы
-// |x| <= 1
-#define ACCURACY 0.00000001
-#define MAX_SIZE 100000
-#define MAX_NOT_NULL_NUMBER 10000000
-#define MAX_ITER 100
-
-// eps - Критерий остановки
-// max_iter – критерий остановки: число итераций больше max_ite
-void SLE_Solver_CRS_Serial(const CRSMatrix & A, double *b, double eps, int max_iter, double *x, int & count, int ProcNum)
-{
-    ConjugateGradientMethod cgm(ProcNum);
-
-    cgm.Solve(A, b, eps, max_iter, x, count);
-}
-
 //////////////////////////////////////////////////
 ///////////////// Softgrader
 //////////////////////////////////////////////////
-void Cholesky_Decomposition(double * A, double * L, int n)
+// r - Место раздела матрицы
+double * GetSubMatrix(double * A, int n, int row1, int row2, int col1, int col2)
+{
+    double * subMatrix = new double[(row2 - row1) * (col2 - col1)];
+    int count = 0;
+
+    for (int i = row1; i < row2; i++)
+    {
+        for (int j = col1; j < col2; j++)
+        {
+            subMatrix[count] = A[i * n + j];
+            count++;
+        }
+    }
+
+    return subMatrix;
+}
+
+// A22 - L21*L21T
+double * WaveOperation(double * A22, double * L21, int n, int r)
+{
+    int size = n - r;
+    double * res = new double[size * size];
+
+    for (int i = 0; i < size; i++)
+    {
+        for (int j = 0; j < size; j++)
+        {
+            int multVec = 0;
+            for (int count = 0; count < r; count++)
+            {
+                //std::cout << "L21[i * r + count] : " << L21[i * r + count] << " | L21[j * r + count] : " << L21[j * r + count] << std::endl;
+                multVec += L21[i * r + count] * L21[j * r + count];
+            }
+            //std::cout << "A22[i * size + j] : " << A22[i * size + j] << " | multVec : " << multVec << std::endl;
+            res[i * size + j] = A22[i * size + j] - multVec;
+        }
+    }
+
+    return res;
+}
+
+// Решается множество систем линейных уравнений: L21 * L11T = A21 -> L11 * L21T = A21T
+void CulcL21(double * A21, double * L21, double * L11, int n, int r)
+{
+    int size = n - r;
+
+    // Преведение всей системы к треугольному виду
+    /*for (int mainDiagCount = 0; mainDiagCount < r; mainDiagCount++)
+    {
+    for (int rowCount = mainDiagCount + 1; rowCount < r; rowCount++)
+    {
+    int d = L11[rowCount * r + mainDiagCount] / L11[mainDiagCount * r + mainDiagCount];
+
+    for (int colCount = mainDiagCount; colCount < r; colCount++)
+    {
+    L11[rowCount * r + colCount] -= d * L11[mainDiagCount * r + colCount];
+    }
+
+    for (int count = 0; count < size; count++)
+    {
+    //A21[rowCount * size + count] -= d * A21[mainDiagCount * r + count];
+    // A21T
+    A21[count * size + rowCount] -= d * A21[count * r + mainDiagCount];
+    }
+    }
+    }*/
+
+    // Обратный ход для каждой правой части
+    for (int numRightPart = 0; numRightPart < size; numRightPart++)
+    {
+        for (int colCount = 0; colCount < r; colCount++)
+        {
+            int sum = 0;
+
+            for (int rowCount = 0; rowCount < colCount; rowCount++)
+            {
+                // L11T
+                sum += L11[colCount * r + rowCount] * L21[numRightPart * r + rowCount];
+            }
+
+            //std::cout << "A21[numRightPart * r + colCount] : " << A21[numRightPart * r + colCount] << " | sum : " << sum << " | L11[colCount * r + colCount] : " << L11[colCount * r + colCount] << std::endl;
+            L21[numRightPart * r + colCount] = (A21[numRightPart * r + colCount] - sum) / L11[colCount * r + colCount];
+        }
+    }
+}
+
+void MergeLMatrix(double * L, double * L11, double * L21, double * L22, int n, int blockSize)
+{
+    int count = 0;
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            if (i < blockSize && j < blockSize)
+            {
+                L[count] = L11[i * blockSize + j];
+            }
+            else if (i < blockSize && j >= blockSize)
+            {
+                L[count] = 0;
+            }
+            else if (i >= blockSize && j < blockSize)
+            {
+                L[count] = L21[(i - blockSize) * blockSize + j];
+            }
+            else if (i >= blockSize && j >= blockSize)
+            {
+                L[count] = L22[(i - blockSize) * (n - blockSize) + (j - blockSize)];
+            }
+
+            count++;
+        }
+    }
+}
+
+void Cholesky_Decomposition_Func(double * A, double * L, int n)
 {
     for (int i = 0; i < n; i++)
     {
@@ -180,9 +271,10 @@ void Cholesky_Decomposition(double * A, double * L, int n)
         }
 
         // A[j][k] = A[j][k] - A[j][i] * A[k][i]
+        // Идем по оставшуся нижнему треугольнику
         for (int k = i + 1; k < n; k++)
         {
-#pragma omp parallel for // OK
+#pragma omp parallel for
             for (int j = k; j < n; j++)
             {
                 A[j * n + k] -= A[j * n + i] * A[k * n + i];
@@ -199,30 +291,64 @@ void Cholesky_Decomposition(double * A, double * L, int n)
     }
 }
 
-void SLE_Solver_CRS(CRSMatrix & A, double * b, double eps, int max_iter, double * x, int & count)
+void Cholesky_Decomposition(double * A, double * L, int n)
 {
+    // Размер блока
+    int blockSize = 3;
 
+    double * A11 = GetSubMatrix(A, n, 0, blockSize, 0, blockSize); PrintVector(A11, blockSize, blockSize);
+    double * A21 = GetSubMatrix(A, n, blockSize, n, 0, blockSize); PrintVector(A21, n - blockSize, blockSize);
+    double * A22 = GetSubMatrix(A, n, blockSize, n, blockSize, n); PrintVector(A22, n - blockSize, n - blockSize);
+
+    double * L11 = new double[blockSize * blockSize];
+    double * L21 = new double[(n - blockSize) * blockSize];
+    double * L22 = new double[(n - blockSize) * (n - blockSize)];
+
+    Cholesky_Decomposition_Func(A11, L11, blockSize); PrintVector(L11, blockSize, blockSize);
+
+    CulcL21(A21, L21, L11, n, blockSize);
+    
+    double * _A22 = WaveOperation(A22, L21, n, blockSize); PrintVector(_A22, n - blockSize, n - blockSize);
+    Cholesky_Decomposition_Func(_A22, L22, n - blockSize); PrintVector(L22, n - blockSize, n - blockSize);
+
+    MergeLMatrix(L, L11, L21, L22, n, blockSize); PrintVector(L, n, n);
+
+    delete [] A11;
+    delete [] A21;
+    delete [] A22;
+
+    delete [] L11;
+    delete [] L21;
+    delete [] L22;
+
+    delete [] _A22;
 }
 
 //////////////////////////////////////////////////
 ///////////////// Local function
 //////////////////////////////////////////////////
-void PrintVector(double * vec, int n)
+void PrintVector(double * vec, int rowSize, int collSize)
 {
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < rowSize; i++)
     {
-        COUT << vec[i] << "	";
+        for (int j = 0; j < collSize; j++)
+        {
+            COUT << vec[i * collSize + j] << "	";
+        }
+        COUT << ENDL;
     }
 
     COUT << ENDL;
 }
 
-double* GenVec(int size, int var)
+std::vector<double> GenVec(int size, int var)
 {
-    double * res = new double[size];
+    std::vector<double> res;
 
     for (int i = 0; i < size; i++)
     {
+        res.push_back(0);
+
         do {
             res[i] = RAND(-var, var);
         } while (res[i] == 0);
@@ -244,12 +370,12 @@ void GeneratePDSM(int size, double koef, int var, std::vector<double> &initVec)
         
         if (rowIndex < colIndex)
         {
-            vec[rowIndex * size + colIndex] = RAND(-var, var);
+            vec[rowIndex * size + colIndex] = RAND(0, var * 2);
             vec[colIndex * size + rowIndex] = vec[rowIndex * size + colIndex];
         }
         else if (rowIndex == colIndex)
         {
-            vec[i] = RAND(-var, var);
+            vec[i] = RAND(0, var * 2);
         }
     }
 
@@ -275,20 +401,6 @@ void GeneratePDSM(int size, double koef, int var, std::vector<double> &initVec)
     }
 
     initVec = vec;
-}
-
-bool PRKK(std::vector<double> res1, std::vector<double> res2, double accuracy)
-{
-    if (res1.size() != res2.size())
-        return false;
-
-    for (int i = 0; i < res1.size(); i++)
-    {
-        if (abs(res1[i] - res2[i]) > accuracy)
-            return false;
-    }
-
-    return true;
 }
 
 bool PRKK(double * res1, double * res2, int n, double accuracy)
@@ -318,7 +430,8 @@ bool CompareMatrixVsArray(CMatrix<double> matrix, double *arr)
 {
     for (int i = 0; i < matrix.GetSize(); i++)
     {
-        if (matrix[i] != arr[i])
+		double val = matrix[i];
+        if (val != arr[i])
         {
             return false;
         }
@@ -327,43 +440,12 @@ bool CompareMatrixVsArray(CMatrix<double> matrix, double *arr)
     return true;
 }
 
-void GetRefA(CRSMatrix& matrix)
-{
-	if (matrix.GetN() == 4)
-	{
-		matrix.SetValue(0, 0, 19);
-		matrix.SetValue(0, 1, 9);
-		matrix.SetValue(0, 2, 1);
-		matrix.SetValue(0, 3, 9);
-
-		matrix.SetValue(1, 1, 23);
-		matrix.SetValue(1, 2, 10);
-		matrix.SetValue(1, 3, 4);
-
-		matrix.SetValue(2, 2, 20);
-		matrix.SetValue(2, 3, 9);
-
-		matrix.SetValue(3, 3, 22);
-	}
-}
-
-void GetRefX(double * x)
-{
-	x[0] = 1;
-	x[1] = 2;
-	x[2] = 3;
-	x[3] = 4;
-}
-
-
 //////////////////////////////////////////////////
 ///////////////// Main function
 //////////////////////////////////////////////////
 int main()
 {
     srand(time(0));
-
-#ifdef CHOLESKY_DECOMPOSITION
 
 #ifdef TESTPROG
 
@@ -419,19 +501,19 @@ int main()
     }
 #endif
 
-    int size = 3;
+    int size = 9;
     int ProcNum = 1;
 
     std::vector<double> initVec(pow(size, 2));
-    CHECK_STATUS(GeneratePDSM(size, 1, 9, initVec));
+    GeneratePDSM(size, 1, 9, initVec);
 
     CMatrix<double> AMatrix(initVec);
     std::vector<double> ref_xVector = GenVec(AMatrix.GetSize(), 20);
     std::vector<double> bVector = AMatrix * ref_xVector;
     CMatrix<double> LMatirx(AMatrix.GetSize());
 
-    CHECK_STATUS(CholeskyBlockDecompositionWithoutCollect(AMatrix, LMatirx, ProcNum));
-
+    CholeskyBlockDecompositionWithoutCollect(AMatrix, LMatirx, ProcNum);
+	LMatirx.PrintMatrix();
     // -------------------------------------------------------------------------------
     int n = size;
     double *A = new double[pow(n, 2)];
@@ -439,6 +521,7 @@ int main()
     {
         A[i] = initVec[i];
     }
+    PrintVector(A, n, n);
     double *L = new double[pow(n, 2)];
 
     omp_set_num_threads(ProcNum);
@@ -448,122 +531,8 @@ int main()
         COUT << "OK";
     else
         COUT << "FAILED";
-#endif
 
-//#ifdef CONJUGATE_GRADIENT_METHOD
-    
-    /*int n = ELEM_NUM;
-    CRSMatrix A(n);
-
-    double start_time = omp_get_wtime();
-
-    // Сгенерировать симметричную положительноопределенную матрицу
-    InitCRSMatrix(A, n, n * n * 0.001);
-    CHECK_TIME("Gen");
-    COUT << "Gen time: " << omp_get_wtime() - start_time << ENDL;
-    //PrintCRSMatrix(A);
-
-    // Сгенерировать решение
-    double * xRef = GenVec(n, 9);
-    if (n < 5)
-    {
-    	COUT << "xRef: ";
-    	PrintVector(xRef, n);
-    }
-
-    // Подсчетать по решению вектор b
-    double * b = new double[n];
-    VectorMultMatrix(A, xRef, n, b);
-    if (n < 5)
-    {
-    	COUT << "b: ";
-    	PrintVector(b, n);
-    }
-    
-    // Задать начальное приближение
-    double * x = new double[n];
-    for (int i = 0; i < n; i++)
-        x[i] = 1;
-
-    int count = 0;
-
-    CHECK_TIME("Start");
-    start_time = omp_get_wtime();
-    SLE_Solver_CRS_Serial(A, b, ACCURACY, MAX_ITER, x, count);
-    COUT << "====================" << ENDL;
-    COUT << "Time: " << omp_get_wtime() - start_time << ENDL;
-    COUT << "====================" << ENDL;
-    COUT << "PRKK : "; COUT_BOOL(PRKK(x, xRef, n, ACCURACY)); COUT << ENDL;
-    COUT << "====================" << ENDL;
-
-    if (n < 5)
-    {
-    	COUT << "x: ";
-    	PrintVector(x, n);
-    }*/
-
-    for (int n = 100; n <= 400; n += 100)
-    {
-		float coef;
-		if (n > 1000)
-			coef = 0.001;
-		else if (n > 100)
-			coef = 0.01;
-		else if (n > 10)
-			coef = 0.1;
-		else
-			coef = 0.5;
-
-        COUT << "=================================== SIZE : " << n << ENDL;
-
-        CRSMatrix A(n);
-        InitCRSMatrix(A, n, n * n * coef);
-		//GetRefA(A);
-
-        for (int countTreadNum = 1; countTreadNum < PROC_NUM + 1; countTreadNum++)
-        {
-            COUT << "=================================== COUNT TREAD NUM : " << countTreadNum << ENDL;
-			omp_set_num_threads(countTreadNum);
-
-            for (int count = 0; count < 2; count++)
-            {
-                COUT << "=================================== COUNT : " << count << ENDL;
-
-                // Сгенерировать решение
-                double * xRef = GenVec(n, 9);// = new double[n];
-				//GetRefX(xRef);
-				//COUT << "xRef: ";  PrintVector(xRef, n);
-
-                // Подсчетать по решению вектор b
-                double * b = new double[n];
-                VectorMultMatrix(A, xRef, n, b);
-				//COUT << "b: ";  PrintVector(b, n);
-                   
-                // Задать начальное приближение
-                double * x = new double[n];
-                for (int i = 0; i < n; i++)
-                    x[i] = 1;
-				//COUT << "x: ";  PrintVector(x, n);
-
-                int countTmp = 0;
-
-                double start_time = omp_get_wtime();
-                SLE_Solver_CRS_Serial(A, b, ACCURACY, MAX_ITER, x, countTmp, countTreadNum);
-				//COUT << "x: ";  PrintVector(x, n);
-                //COUT << "====================" << ENDL;
-                COUT << "Solution Time: " << omp_get_wtime() - start_time << ENDL;
-                //COUT << "====================" << ENDL;
-                COUT << "PRKK : "; COUT_BOOL(PRKK(x, xRef, n, ACCURACY)); COUT << ENDL;
-                //COUT << "====================" << ENDL;
-
-				delete xRef;
-				delete b;
-				delete x;
-            }
-        }
-    }
-
-//#endif
+    COUT << ENDL;
 
     READLN;
 

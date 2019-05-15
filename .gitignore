@@ -1,12 +1,14 @@
 # Visual Studio
 
-*.vcxproj
-*.filters
-*.sln
-*.user
+**.vcxproj
+**.filters
+**.sln
+**.user
+**.txt
 
-
+**build/
+**Build/
 **Debug/
 **Release/
 **x64/
-/.vs/
+**.vs/

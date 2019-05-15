@@ -116,7 +116,7 @@ void GenVecWithoutNull(std::vector<double> &vec, int n, int var)
     }
 }
 
-void InitCRSMatrix(CRSMatrix &matrix, int n, int nz)
+void InitCRSMatrix(CRSMatrix &matrix, unsigned int n, unsigned int nz)
 {
     std::vector<double> initVec;
     const int varNum = 9;
@@ -130,7 +130,7 @@ void InitCRSMatrix(CRSMatrix &matrix, int n, int nz)
 //#pragma omp parallel for
     for (int i = 0; i < initVec.size(); i++)
     {
-		//COUT << "i: " << i << ENDL;
+		if ((i % 1000) == 0) COUT << "Init: " << i / 1000 << "%" << ENDL;
 
         int indexI, indexJ;
         //do
@@ -152,10 +152,11 @@ void InitCRSMatrix(CRSMatrix &matrix, int n, int nz)
             sum += abs(matrix.GetValue(i, j));
         }
 
-        if (sum == 0)
-            sum = RAND(1, varNum);
+		if (sum == 0)
+			sum = rand() % (varNum) + 1; // RAND(1, varNum);
 
-        matrix.SetValue(i, i, sum);
+		int addition = rand() % (varNum);
+        matrix.SetValue(i, i, sum + addition);
     }
 
 	if (n < 5)

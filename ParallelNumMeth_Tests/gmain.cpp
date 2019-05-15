@@ -4,6 +4,118 @@
 
 #include "..\ParallelNumMeth\CMatrix.h"
 
+//---------------------------------------------------------------
+// A22 - L21*L21T
+double * WaveOperation(double * A22, double * L21, int n, int r)
+{
+    int size = n - r;
+    double * res = new double[size * size];
+
+    for (int i = 0; i < size; i++)
+    {
+        for (int j = 0; j < size; j++)
+        {
+            int multVec = 0;
+            for (int count = 0; count < r; count++)
+            {
+                //std::cout << "L21[i * r + count] : " << L21[i * r + count] << " | L21[j * r + count] : " << L21[j * r + count] << std::endl;
+                multVec += L21[i * r + count] * L21[j * r + count];
+            }
+            //std::cout << "A22[i * size + j] : " << A22[i * size + j] << " | multVec : " << multVec << std::endl;
+            res[i * size + j] = A22[i * size + j] - multVec;
+        }
+    }
+
+    return res;
+}
+
+// Решается множество систем линейных уравнений: L21 * L11T = A21 -> L11 * L21T = A21T
+void CulcL21(double * A21, double * L21, double * L11, int n, int r)
+{
+    int size = n - r;
+
+    // Преведение всей системы к треугольному виду
+    /*for (int mainDiagCount = 0; mainDiagCount < r; mainDiagCount++)
+    {
+        for (int rowCount = mainDiagCount + 1; rowCount < r; rowCount++)
+        {
+            int d = L11[rowCount * r + mainDiagCount] / L11[mainDiagCount * r + mainDiagCount];
+
+            for (int colCount = mainDiagCount; colCount < r; colCount++)
+            {
+                L11[rowCount * r + colCount] -= d * L11[mainDiagCount * r + colCount];
+            }
+
+            for (int count = 0; count < size; count++)
+            {
+                //A21[rowCount * size + count] -= d * A21[mainDiagCount * r + count];
+                // A21T
+                A21[count * size + rowCount] -= d * A21[count * r + mainDiagCount];
+            }
+        }
+    }*/
+
+    // Обратный ход для каждой правой части
+    for (int numRightPart = 0; numRightPart < size; numRightPart++)
+    {
+        for (int colCount = 0; colCount < r; colCount++)
+        {
+            int sum = 0;
+
+            for (int rowCount = 0; rowCount < colCount; rowCount++)
+            {
+                // L11T
+                sum += L11[colCount * r + rowCount] * L21[numRightPart * r + rowCount];
+            }
+
+            //std::cout << "A21[numRightPart * r + colCount] : " << A21[numRightPart * r + colCount] << " | sum : " << sum << " | L11[colCount * r + colCount] : " << L11[colCount * r + colCount] << std::endl;
+            L21[numRightPart * r + colCount] = (A21[numRightPart * r + colCount] - sum) / L11[colCount * r + colCount];
+        }
+    }
+}
+
+void MergeLMatrix(double * L, double * L11, double * L21, double * L22, int n, int blockSize)
+{
+    int count = 0;
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            if (i < blockSize && j < blockSize)
+            {
+                L[count] = L11[i * blockSize + j];
+            }
+            else if (i < blockSize && j >= blockSize)
+            {
+                L[count] = 0;
+            }
+            else if (i >= blockSize && j < blockSize)
+            {
+                L[count] = L21[(i - blockSize) * blockSize + j];
+            }
+            else if (i >= blockSize && j >= blockSize)
+            {
+                L[count] = L22[(i - blockSize) * (n - blockSize) + (j - blockSize)];
+            }
+
+            count++;
+        }
+    }
+}
+
+bool PRKK(double * res1, double * res2, int n, double accuracy)
+{
+    for (int i = 0; i < n; i++)
+    {
+        if (abs(res1[i] - res2[i]) > accuracy)
+            return false;
+    }
+
+    return true;
+}
+//---------------------------------------------------------------
+
 //-------------------- GetMatrixRow
 TEST(Functions, GetMatrixRow)
 {
@@ -197,11 +309,147 @@ TEST(Functions, IsPositivelyDefined)
     EXPECT_EQ(cMatrix3.IsPositivelyDefined(), true);
 }
 
+//------------------- WaveOperation
+TEST(Functions, WaveOperation)
+{
+    int n, r;
+    double * A22;
+    double * L21;
+    double * res;
+    double * refRes;
+
+    // --- Test 1
+    n = 4;
+    r = 2;
+    A22 = new double[(n - r) * (n - r)] { 2,3,
+                                          4,5 };
+    L21 = new double[(n - r) * r] { 6,0,
+                                    3,4 };
+
+    res = WaveOperation(A22, L21, n, r);
+    refRes = new double[n - r] { -34,-15, -14,-20 };
+
+    EXPECT_EQ(PRKK(res, refRes, (n - r) * (n - r), 0.0001), true);
+
+    // --- Test 2
+    n = 9;
+    r = 3;
+    A22 = new double[(n - r) * (n - r)]{ 100,100,100,100,100,100,
+                                         100,100,100,100,100,100,
+                                         100,100,100,100,100,100,
+                                         100,100,100,100,100,100,
+                                         100,100,100,100,100,100,
+                                         100,100,100,100,100,100, };
+    L21 = new double[(n - r) * r]{ 6,0,3,
+                                   4,7,5,
+                                   3,6,5,
+                                   8,4,8,
+                                   8,4,7,
+                                   5,6,2 };
+
+    res = WaveOperation(A22, L21, n, r);
+    refRes = new double[n - r]{ 55,61,67,28,31,64,
+                                61,10,21,0,5,28,
+                                67,21,30,12,17,39,
+                                28,0,12,-44,-36,20,
+                                31,5,17,-36,-29,22,
+                                64,28,39,20,22,35 };
+
+    EXPECT_EQ(PRKK(res, refRes, (n - r) * (n - r), 0.0001), true);
+}
+
+//------------------- CulcL21
+TEST(Functions, CulcL21)
+{
+    int n, r;
+    double * L21;
+    double * L11;
+    double * A21;
+    double * refL21;
+
+    // --- Test 1
+    n = 5;
+    r = 2;
+
+    L21 = new double[(n - r) * r];
+    L11 = new double[r * r] { 1,0,
+                              6,2 };
+    A21 = new double[(n - r) * r] { 5,7,
+                                    1,2,
+                                    5,6};
+
+    CulcL21(A21, L21, L11, n, r);
+
+    refL21 = new double[(n - r) * r] { 5,-11.5,
+                                       1,   -2,
+                                       5,  -12 };
+
+    EXPECT_EQ(PRKK(L21, refL21, (n - r) * r, 0.0001), true);
+
+    // --- Test 2
+    n = 9;
+    r = 3;
+
+    L21 = new double[(n - r) * r];
+    L11 = new double[r * r]{ 1,0,0,
+                             6,2,0,
+                             8,4,7 };
+    A21 = new double[(n - r) * r]{ 5,7,8,
+                                   1,2,7,
+                                   5,6,5,
+                                   8,5,7,
+                                   3,6,2,
+                                   1,4,5 };
+
+    CulcL21(A21, L21, L11, n, r);
+
+    refL21 = new double[(n - r) * r]{ 5,-11.5,    2,
+                                      1,   -2,    1,
+                                      5,  -12,13./7.,
+                                      8,-21.5,29./7.,
+                                      3,   -6, 2./7.,
+                                      1, -1, 1./7. };
+
+    EXPECT_EQ(PRKK(L21, refL21, (n - r) * r, 0.0001), true);
+}
+
+//------------------- MergeLMatrix
+TEST(Functions, MergeLMatrix)
+{
+    int n = 6;
+    int r = 2;
+
+    double * L = new double[n * n];
+    double * L11 = new double[r * r] { 8,0,
+                                       6,7 };
+
+    double * L21 = new double[(n - r) * r] { 6,3,
+                                             6,8,
+                                             9,8,
+                                             3,5, };
+
+    double * L22 = new double[(n - r) * (n - r)]{ 6,0,0,0,
+                                                  6,8,0,0,
+                                                  9,8,5,0,
+                                                  3,5,1,4 };
+
+    MergeLMatrix(L, L11, L21, L22, n, r);
+
+    double * refL = new double[n * n] { 8,0,0,0,0,0,
+                                        6,7,0,0,0,0,
+                                        6,3,6,0,0,0,
+                                        6,8,6,8,0,0,
+                                        9,8,9,8,5,0,
+                                        3,5,3,5,1,4 };
+
+    EXPECT_EQ(PRKK(L, refL, n * n, 0.0001), true);
+}
+
 int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);
     int res = RUN_ALL_TESTS();
     int a;
-    std::cin >> a;
+    //std::cin >> a;
     return res;
 }

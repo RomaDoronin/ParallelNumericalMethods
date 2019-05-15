@@ -1,9 +1,13 @@
 #pragma once
 
-#define CRS_MATRIX
+#define _CRSMATRIX_
 
+#ifndef _VECTOR_
 #include <vector>
+#endif
+#ifndef _IOSTREAM_
 #include <iostream>
+#endif
 
 #define RAND(v_min, v_max) (rand() % (v_max - v_min + 1) + v_min)
 #define COUT std::cout
@@ -35,6 +39,6 @@ public:
 void GenVecWithoutNull(std::vector<double> &vec, int n, int var);
 
 // nz - n = четное
-void InitCRSMatrix(CRSMatrix &matrix, int n, int nz);
+void InitCRSMatrix(CRSMatrix &matrix, unsigned int n, unsigned int nz);
 
 void PrintCRSMatrix(CRSMatrix &matrix);
